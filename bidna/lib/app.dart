@@ -40,7 +40,9 @@ class App extends StatelessWidget {
                         prefixIcon: Icon(Icons.search, color: Colors.black54),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
                         ),
+                        filled: true,
                         fillColor: Color.fromRGBO(241, 244, 248, 1),
                         focusColor: Color.fromRGBO(96, 103, 237, 1),
                       ),
@@ -141,12 +143,14 @@ class App extends StatelessWidget {
                         "https://www.shutterstock.com/image-photo/facial-cosmetic-products-containers-on-600nw-2566963627.jpg",
                     productTitle: "Perfume",
                     price: 99.99,
+                    bids: 12,
                   ),
                   ProductCard(
                     imageUrl:
                         "https://www.shutterstock.com/image-photo/facial-cosmetic-products-containers-on-600nw-2566963627.jpg",
                     productTitle: "Perfume",
                     price: 99.99,
+                    bids: 8,
                   ),
                 ],
               ),

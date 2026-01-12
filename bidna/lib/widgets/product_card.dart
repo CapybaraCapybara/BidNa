@@ -4,12 +4,14 @@ class ProductCard extends StatelessWidget {
   final String imageUrl;
   final String productTitle;
   final double price;
+  final int bids;
 
   const ProductCard({
     super.key,
     required this.imageUrl,
     required this.productTitle,
     required this.price,
+    required this.bids,
   });
 
   @override
@@ -19,21 +21,75 @@ class ProductCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: SizedBox(
         width: 190,
-        height: 300,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-              ),
-              child: Image.network(
-                imageUrl,
-                width: 200,
-                height: 150,
-                fit: BoxFit.cover,
-              ),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+
+                Positioned(
+                  // ปุ้ม fav
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.favorite_border, size: 20),
+                      color: Colors.grey,
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(6),
+                      onPressed: () {},
+                    ),
+                  ),
+                ),
+
+                // นับถอยหลัง
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.timer, color: Colors.white, size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          "02:15:30", // เดวต้องเปลี่ยนเป็นเวลาจิง
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
+
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
@@ -42,10 +98,43 @@ class ProductCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text(
-                '\$${price.toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 14, color: Colors.green),
+              padding: const EdgeInsets.symmetric(horizontal: 6.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    children: [
+                      Text(
+                        "Current Bid",
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '\$${price.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromRGBO(96, 103, 237, 1),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const Icon(Icons.gavel, size: 14, color: Colors.black45),
+                      const SizedBox(width: 4),
+                      Text(
+                        "$bids bids",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
