@@ -1,18 +1,10 @@
+import 'package:bidna/models/product_model.dart';
 import 'package:flutter/material.dart';
 
 class ProductCard extends StatelessWidget {
-  final String imageUrl;
-  final String productTitle;
-  final double price;
-  final int bids;
+  final Product product;
 
-  const ProductCard({
-    super.key,
-    required this.imageUrl,
-    required this.productTitle,
-    required this.price,
-    required this.bids,
-  });
+  const ProductCard({super.key, required this.product});
 
   @override
   Widget build(BuildContext context) {
@@ -31,9 +23,9 @@ class ProductCard extends StatelessWidget {
                     top: Radius.circular(10),
                   ),
                   child: Image.network(
-                    imageUrl,
+                    product.imageUrl,
                     width: double.infinity,
-                    height: 200,
+                    height: 150,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -93,7 +85,7 @@ class ProductCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                productTitle,
+                product.productTitle,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -110,7 +102,7 @@ class ProductCard extends StatelessWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        '\$${price.toStringAsFixed(0)}',
+                        '\$${product.price.toStringAsFixed(0)}',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -125,7 +117,7 @@ class ProductCard extends StatelessWidget {
                       const Icon(Icons.gavel, size: 14, color: Colors.black45),
                       const SizedBox(width: 4),
                       Text(
-                        "$bids bids",
+                        "${product.bids} bids",
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.black54,

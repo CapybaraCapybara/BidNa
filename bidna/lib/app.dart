@@ -1,11 +1,72 @@
 import 'package:bidna/widgets/product_card.dart';
 import 'package:flutter/material.dart';
+import 'package:bidna/models/product_model.dart';
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
 
   @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  String selectedCategory = "All";
+  final List<String> categories = [
+    "All",
+    "Electronics",
+    "Fashion",
+    "Collections",
+  ];
+
+  final List<Product> allProducts = [
+    Product(
+      productTitle: "iPhone 15",
+      bids: 5,
+      category: "Electronics",
+      price: 999,
+      imageUrl:
+          "https://cdn.siamphone.com/spec/apple/images/iphone_15/1694676311_09-apple-iphone-15.jpg",
+    ),
+    Product(
+      productTitle: "Laptop",
+      bids: 10,
+      category: "Electronics",
+      price: 1200,
+      imageUrl:
+          "https://www.jib.co.th/img_master/product/original/2025062715451478016_1.jpg",
+    ),
+    Product(
+      productTitle: "T-Shirt",
+      bids: 20,
+      category: "Fashion",
+      price: 20,
+      imageUrl:
+          "https://i.pinimg.com/236x/af/b5/a2/afb5a2a116463f0df214f907dd25a507.jpg",
+    ),
+    Product(
+      productTitle: "Jeans",
+      bids: 124,
+      category: "Fashion",
+      price: 50,
+      imageUrl:
+          "https://shop.mango.com/assets/rcs/pics/static/T7/fotos/S/77014030_TM_B.jpg?imwidth=2048&imdensity=1&ts=1720460135089",
+    ),
+    Product(
+      productTitle: "Pokemon Card",
+      bids: 5,
+      category: "Collections",
+      price: 500,
+      imageUrl:
+          "https://www.toronto-collective.com/cdn/shop/files/P9488_290-85568_03_1200x.jpg?v=1700692297",
+    ),
+  ];
+
+  @override
   Widget build(BuildContext context) {
+    final filteredProducts = selectedCategory == "All"
+        ? allProducts
+        : allProducts.where((p) => p.category == selectedCategory).toList();
+
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
@@ -65,50 +126,40 @@ class App extends StatelessWidget {
                 ],
               ),
               SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  TextButton(
-                    onPressed: () {},
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: categories.map((category) {
+                    final isSelected = selectedCategory == category;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedCategory = category;
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          backgroundColor: isSelected
+                              ? Colors.blue
+                              : Colors.white,
+                          foregroundColor: isSelected
+                              ? Colors.white
+                              : Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(
+                              color: Colors.grey.shade300,
+                            ),
+                          ),
+                        ),
+                        child: Text(category),
                       ),
-                    ),
-                    child: Text("🔥 All"),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text("📱 Electronics"),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text("👗 Fashion"),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text("🏆 Collections"),
-                  ),
-                ],
+                    );
+                  }).toList(),
+                ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -135,24 +186,24 @@ class App extends StatelessWidget {
                 ],
               ),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ProductCard(
-                    imageUrl:
-                        "https://www.shutterstock.com/image-photo/facial-cosmetic-products-containers-on-600nw-2566963627.jpg",
-                    productTitle: "Perfume",
-                    price: 99.99,
-                    bids: 12,
+              Expanded(
+                // แนะนำ GridView.builder แทน ListView ถ้าอยากได้แถวละ 2 รูป
+                child: GridView.builder(
+                  padding: EdgeInsets.all(10),
+                  itemCount: filteredProducts.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, // 2 รูปต่อแถว
+                    childAspectRatio: 0.75, // อัตราส่วน กว้าง/สูง ของการ์ด
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
-                  ProductCard(
-                    imageUrl:
-                        "https://www.shutterstock.com/image-photo/facial-cosmetic-products-containers-on-600nw-2566963627.jpg",
-                    productTitle: "Perfume",
-                    price: 99.99,
-                    bids: 8,
-                  ),
-                ],
+                  itemBuilder: (context, index) {
+                    final product = filteredProducts[index];
+
+                    // เรียกใช้ Widget ProductCard ของคุณ
+                    return ProductCard(product: product);
+                  },
+                ),
               ),
             ],
           ),
