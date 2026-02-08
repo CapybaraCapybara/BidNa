@@ -4,6 +4,7 @@ class Product {
   final double price;
   final String category;
   final int bids;
+  final String status;
 
   Product({
     required this.imageUrl,
@@ -11,5 +12,6 @@ class Product {
     required this.price,
     required this.category,
     required this.bids,
+    this.status = "Open",
   });
 }
