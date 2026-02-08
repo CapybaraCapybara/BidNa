@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "384867838662",
+    "project_id": "bidna-337a4",
+    "storage_bucket": "bidna-337a4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:384867838662:android:9040afa1b2d57fd3ca05c7",
+        "android_client_info": {
+          "package_name": "com.example.bidna"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAukl4o7sNy175D4idE92UzpNpjIAuiOb8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
