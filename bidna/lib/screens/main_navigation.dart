@@ -1,3 +1,4 @@
+import 'package:bidna/screens/HomeScreen.dart';
 import 'package:flutter/material.dart';
 import 'product_list_page.dart';
 import '../screens/create_list_page.dart';
@@ -11,7 +12,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [
-    ProductListPage(),
+    HomeScreen(),
     CreateListingBase64(),
   ];
 
