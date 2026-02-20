@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bidna/screens/HomeScreen.dart';
+import 'package:bidna/screens/login_screen.dart';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -9,6 +10,7 @@ class App extends StatefulWidget {
 }
 
 class _AppState extends State<App> {
+  bool _isLoggedIn = false;
   int _selectedIndex = 0;
 
   // 2. รายชื่อหน้าต่างๆ (เรียงตามไอคอนข้างล่าง)
@@ -36,34 +38,33 @@ class _AppState extends State<App> {
         scaffoldBackgroundColor: const Color.fromRGBO(238, 237, 237, 1),
       ),
 
-      home: Scaffold(
-        body: _pages[_selectedIndex],
-
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          selectedItemColor: const Color.fromRGBO(96, 103, 237, 1),
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(
-              icon: Icon(
-                Icons.shopping_cart,
-                color: Color.fromRGBO(96, 103, 237, 1),
+      home: _isLoggedIn
+          ? Scaffold(
+              body: _pages[_selectedIndex],
+              bottomNavigationBar: BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: _onItemTapped,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.shopping_cart),
+                    label: 'Sell',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.favorite),
+                    label: 'Watchlist',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Profile',
+                  ),
+                ],
               ),
-              label: 'Sell',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.favorite),
-              label: 'Watchlist',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          ],
-        ),
-      ),
+            )
+          : const LoginScreen(),
     );
   }
 }
