@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:intl/intl.dart';
 
 class BidActionCard extends StatefulWidget {
   final double currentPrice;
   final int bidCount;
   final Function(double) onBidPlaced;
+  final DateTime endTime;
 
   const BidActionCard({
     super.key,
     required this.currentPrice,
     this.bidCount = 0,
     required this.onBidPlaced,
+    required this.endTime,
   });
 
   @override
@@ -19,9 +22,35 @@ class BidActionCard extends StatefulWidget {
 
 class _BidActionCardState extends State<BidActionCard> {
   final TextEditingController _bidController = TextEditingController();
+  Timer? _timer;
+  bool _isEnded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTime();
+    // 2. ตั้ง Timer เช็คทุก 1 วิ เฉพาะการ์ดนี้! ไม่กระทบรูปภาพ!
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkTime();
+    });
+  }
+
+  void _checkTime() {
+    bool ended = DateTime.now().isAfter(widget.endTime);
+    if (ended != _isEnded) {
+      // ถ้าสถานะเปลี่ยนจากยังไม่หมด -> หมดเวลา
+      if (mounted) {
+        setState(() {
+          _isEnded = ended; // สั่งอัปเดตล็อคปุ่ม
+        });
+      }
+      if (ended) _timer?.cancel(); // ถ้าหมดเวลาแล้วก็หยุดเช็ค
+    }
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _bidController.dispose();
     super.dispose();
   }
@@ -79,6 +108,7 @@ class _BidActionCardState extends State<BidActionCard> {
               Expanded(
                 child: TextField(
                   controller: _bidController,
+                  enabled: !_isEnded,
                   decoration: InputDecoration(
                     hintText: "Enter amount",
                     filled: true,
@@ -97,10 +127,13 @@ class _BidActionCardState extends State<BidActionCard> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () {
-                  double bidAmount = double.tryParse(_bidController.text) ?? 0;
-                  widget.onBidPlaced(bidAmount);
-                },
+                onPressed: _isEnded
+                    ? null
+                    : () {
+                        double bidAmount =
+                            double.tryParse(_bidController.text) ?? 0;
+                        widget.onBidPlaced(bidAmount);
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromRGBO(96, 103, 237, 1),
                   foregroundColor: Colors.white,
@@ -140,9 +173,9 @@ class _BidActionCardState extends State<BidActionCard> {
         Text(
           "฿${NumberFormat('#,###').format(price)}",
           style: const TextStyle(
-            fontSize: 20,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Color.fromRGBO(96, 103, 237, 1),
           ),
         ),
       ],
@@ -153,13 +186,14 @@ class _BidActionCardState extends State<BidActionCard> {
   Widget _buildQuickBidButton(double extra) {
     return Expanded(
       child: OutlinedButton(
-        onPressed: () {
-          setState(() {
-            _bidController.text = (widget.currentPrice + extra).toStringAsFixed(
-              0,
-            );
-          });
-        },
+        onPressed: _isEnded
+            ? null
+            : () {
+                setState(() {
+                  _bidController.text = (widget.currentPrice + extra)
+                      .toStringAsFixed(0);
+                });
+              },
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.grey),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

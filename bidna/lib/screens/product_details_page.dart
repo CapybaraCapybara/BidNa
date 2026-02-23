@@ -1,15 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:bidna/widgets/bidHistoryItem.dart';
 
-class ProductDetailsPage extends StatelessWidget {
+class ProductDetailsPage extends StatefulWidget {
   final String productId;
-  ProductDetailsPage({required this.productId});
+  const ProductDetailsPage({super.key, required this.productId});
 
+  @override
+  State<ProductDetailsPage> createState() => _ProductDetailsPageState();
+}
+
+class _ProductDetailsPageState extends State<ProductDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,7 +26,7 @@ class ProductDetailsPage extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('Products')
-            .doc(productId)
+            .doc(widget.productId)
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData)
@@ -42,6 +46,7 @@ class ProductDetailsPage extends StatelessWidget {
                       itemBuilder: (_, i) => Image.memory(
                         base64Decode(images[i]),
                         fit: BoxFit.cover,
+                        gaplessPlayback: true,
                       ),
                     ),
                   ),
@@ -73,6 +78,7 @@ class ProductDetailsPage extends StatelessWidget {
                         currentPrice: data['currentPrice'],
                         bidCount: 0,
                         onBidPlaced: (amount) {},
+                        endTime: endTime,
                       ),
                       const SizedBox(height: 20),
                       /* ส่วนผู้สร้างประมูล */
@@ -214,21 +220,74 @@ class ProductDetailsPage extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           // ตัวอย่างการเรียกใช้ Widget ที่เราสร้าง
-                          const BidHistoryItem(
-                            username: "WatchCollector88",
-                            timeAgo: "5 minutes ago",
-                            amount: 12500,
-                            isHighest: true,
-                          ),
-                          const BidHistoryItem(
-                            username: "VintageHunter",
-                            timeAgo: "15 minutes ago",
-                            amount: 12000,
-                          ),
-                          const BidHistoryItem(
-                            username: "TimepieceLover",
-                            timeAgo: "30 minutes ago",
-                            amount: 11500,
+                          StreamBuilder<QuerySnapshot>(
+                            stream: FirebaseFirestore.instance
+                                .collection('Products')
+                                .doc(
+                                  widget.productId,
+                                ) // อ้างอิง ID ของสินค้าหน้านี้
+                                .collection(
+                                  'bids',
+                                ) // เข้าไปที่ Subcollection 'bids'
+                                .orderBy(
+                                  'timestamp',
+                                  descending: true,
+                                ) // สำคัญ: เรียงจากเวลาล่าสุด (หรือราคาแพงสุด) ขึ้นก่อน
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              }
+
+                              if (!snapshot.hasData ||
+                                  snapshot.data!.docs.isEmpty) {
+                                return const Text(
+                                  "No bids yet. Be the first!",
+                                  style: TextStyle(color: Colors.grey),
+                                );
+                              }
+
+                             
+                              final bids = snapshot.data!.docs;
+
+                              return ListView.builder(
+                                shrinkWrap:
+                                    true, // สำคัญมาก! ต้องใส่เมื่อ ListView อยู่ใน Column หรือ SingleChildScrollView
+                                physics:
+                                    const NeverScrollableScrollPhysics(), // ป้องกันไม่ให้มัน Scroll แย่งกับ SingleChildScrollView ตัวแม่
+                                itemCount: bids.length, // จำนวนรายการทั้งหมด
+                                itemBuilder: (context, index) {
+                                  // ดึงข้อมูลแต่ละแถวออกมาตาม index
+                                  var bidData =
+                                      bids[index].data()
+                                          as Map<String, dynamic>;
+
+                                  // ถ้าเราเรียงจากแพงสุด->ถูกสุด หรือ ล่าสุด->เก่าสุด แล้ว
+                                  // อันดับแรกสุด (index == 0) ก็คือ Highest Bid เสมอครับ!
+                                  bool isHighest = index == 0;
+
+                                  // แปลง Timestamp จาก Firebase กลับเป็น DateTime
+                                  DateTime bidTime =
+                                      (bidData['timestamp'] as Timestamp)
+                                          .toDate();
+
+                                  return BidHistoryItem(
+                                    username:
+                                        bidData['userId'] ??
+                                        "Anonymous", // ดึงชื่อจาก Firebase
+                                    timeAgo:
+                                        "Just now", // ใส่ Hardcode ไว้ก่อนเดี๋ยวมาแก้
+                                    amount: (bidData['price'] ?? 0)
+                                        .toDouble(), // ดึงราคาจาก Firebase
+                                    isHighest:
+                                        isHighest, // ส่งค่า true เฉพาะบรรทัดแรก
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ],
                       ),
