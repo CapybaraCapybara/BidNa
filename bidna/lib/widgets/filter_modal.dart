@@ -74,7 +74,7 @@ class _FilterModalState extends State<FilterModal> {
               RangeSlider(
                 values: _tempRange,
                 min: 0,
-                max: 2000,
+                max: 100000,
                 divisions: 20,
                 labels: RangeLabels(
                   "\$${_tempRange.start.round()}",

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:bidna/widgets/bidHistoryItem.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String productId;
@@ -34,6 +35,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           var data = snapshot.data!.data() as Map<String, dynamic>;
           List images = data['images'] ?? [];
           DateTime endTime = (data['endTime'] as Timestamp).toDate();
+
+          User? currentUser = FirebaseAuth.instance.currentUser;
+
+          // ดึงแค่ UID เป็น String
+          String? myUid = currentUser?.uid;
+
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +84,58 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       BidActionCard(
                         currentPrice: data['currentPrice'],
                         bidCount: 0,
-                        onBidPlaced: (amount) {},
+                        onBidPlaced: (amount) async {
+                          try {
+                            // 1. อ้างอิงไปยังตำแหน่งของสินค้าชิ้นนี้ใน Firestore
+                            final productRef = FirebaseFirestore.instance
+                                .collection('Products')
+                                .doc(widget.productId);
+
+                            // 2. สั่งอัปเดตข้อมูลใน Document ตัวแม่ (ราคาสูงสุด และบวกจำนวนคนประมูลเพิ่ม 1)
+                            await productRef.update({
+                              'currentPrice': amount,
+                              'totalBids': FieldValue.increment(
+                                1,
+                              ), // 💡 ทริค: สั่งให้ Firebase บวกเลขเพิ่ม 1 อัตโนมัติ
+                            });
+
+                            // 3. บันทึกประวัติการประมูลลงใน Subcollection 'bids' (เพื่อให้ ListView ทำงานได้)
+                            await productRef.collection('bids').add({
+                              'price': amount,
+                              'timestamp':
+                                  FieldValue.serverTimestamp(), // ใช้เวลาจากเซิร์ฟเวอร์ Firebase ชัวร์สุด
+                              'userId':
+                                  myUid ??
+                                  "unknown_user", // ใช้ UID ของผู้ใช้ที่ล็อกอินอยู่
+                            });
+
+                            // 4. (ทางเลือก) แสดงข้อความแจ้งเตือนว่าประมูลสำเร็จแล้ว
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'Bid placed successfully! 🎉',
+                                  ),
+                                  backgroundColor: Colors.green,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            // กรณีเกิด Error (เช่น เน็ตหลุด)
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to place bid: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
                         endTime: endTime,
                       ),
                       const SizedBox(height: 20),
@@ -250,10 +308,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 );
                               }
 
-                             
                               final bids = snapshot.data!.docs;
 
                               return ListView.builder(
+                                padding: EdgeInsets.zero,
                                 shrinkWrap:
                                     true, // สำคัญมาก! ต้องใส่เมื่อ ListView อยู่ใน Column หรือ SingleChildScrollView
                                 physics:

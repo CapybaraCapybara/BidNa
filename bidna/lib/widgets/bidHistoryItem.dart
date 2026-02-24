@@ -52,11 +52,17 @@ class BidHistoryItem extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      username,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                    // 👇 1. เอา Flexible มาครอบ Text
+                    Flexible(
+                      child: Text(
+                        username,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        maxLines: 1, // 👇 2. บังคับให้มีแค่ 1 บรรทัด
+                        overflow:
+                            TextOverflow.ellipsis, // 👇 3. ถ้ายาวไปให้เป็น ...
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -89,6 +95,8 @@ class BidHistoryItem extends StatelessWidget {
               ],
             ),
           ),
+
+          const SizedBox(width: 12),
 
           // 3. ยอดเงิน (Amount)
           Text(

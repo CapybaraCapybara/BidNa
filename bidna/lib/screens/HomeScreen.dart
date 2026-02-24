@@ -141,8 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
               }).toList(),
             ),
           ),
-          
-          // --- Main Content (StreamBuilder) ---
+
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               // ดึงข้อมูลทั้งหมดมาก่อน แล้วค่อยมา Filter ในแอป (Client-side filtering)
@@ -165,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 // --- LOGIC การกรองข้อมูล (Filter) อยู่ตรงนี้ ---
                 final filteredDocs = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
-                  
+
                   // 1. กรอง Category
                   // ต้องดูว่าใน Firebase field ชื่อ 'category' ตรงกับที่เราส่งไปไหม
                   final itemCategory = data['category'] ?? "Others";
