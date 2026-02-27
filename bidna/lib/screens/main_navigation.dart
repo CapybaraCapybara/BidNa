@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:bidna/screens/HomeScreen.dart';
 import '../screens/create_list_page.dart';
 import '../screens/profile_page.dart';
+import '../screens/my_bid_page.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -18,7 +19,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(),
     CreateListingBase64(),
     const Center(child: Text("หน้า Chat", style: TextStyle(fontSize: 24))),
-    const Center(child: Text("หน้า MyBid", style: TextStyle(fontSize: 24))),
+    const MyBidPage(),
     const ProfilePage(),
   ];
 

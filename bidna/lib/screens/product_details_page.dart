@@ -129,6 +129,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   await productRef.update({
                                     'currentPrice': amount,
                                     'totalBids': FieldValue.increment(1), 
+                                    // [เพิ่มบรรทัดนี้] บันทึก UID ของเราไว้ในตัวสินค้า เพื่อให้หน้า MyBid ดึงไปโชว์ได้ง่ายๆ
+                                    'bidders': FieldValue.arrayUnion([myUid]), 
                                   });
 
                                   await productRef.collection('bids').add({
