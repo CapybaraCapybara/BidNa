@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
-import 'package:bidna/widgets/bidHistoryItem.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // [เพิ่ม] สำหรับจัด Format ตัวเลขและวันที่
 
 class ProductDetailsPage extends StatefulWidget {
   final String productId;
@@ -30,16 +30,18 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             .doc(widget.productId)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           var data = snapshot.data!.data() as Map<String, dynamic>;
           List images = data['images'] ?? [];
           DateTime endTime = (data['endTime'] as Timestamp).toDate();
 
           User? currentUser = FirebaseAuth.instance.currentUser;
-
-          // ดึงแค่ UID เป็น String
           String? myUid = currentUser?.uid;
+
+          String sellerUid = data['sellerUid'] ?? '';
+          String fallbackSellerName = data['sellerId'] ?? "Unknown Seller";
 
           return SingleChildScrollView(
             child: Column(
@@ -77,271 +79,331 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         ),
                       ),
                       const SizedBox(height: 15),
-                      /* ส่วนเวลานับ */
                       AuctionCountdownCard(endTime: endTime),
                       const SizedBox(height: 15),
-                      /* ส่วนลงประมูล */
-                      BidActionCard(
-                        currentPrice: data['currentPrice'],
-                        bidCount: 0,
-                        onBidPlaced: (amount) async {
-                          try {
-                            // 1. อ้างอิงไปยังตำแหน่งของสินค้าชิ้นนี้ใน Firestore
-                            final productRef = FirebaseFirestore.instance
-                                .collection('Products')
-                                .doc(widget.productId);
-
-                            // 2. สั่งอัปเดตข้อมูลใน Document ตัวแม่ (ราคาสูงสุด และบวกจำนวนคนประมูลเพิ่ม 1)
-                            await productRef.update({
-                              'currentPrice': amount,
-                              'totalBids': FieldValue.increment(
-                                1,
-                              ), // 💡 ทริค: สั่งให้ Firebase บวกเลขเพิ่ม 1 อัตโนมัติ
-                            });
-
-                            // 3. บันทึกประวัติการประมูลลงใน Subcollection 'bids' (เพื่อให้ ListView ทำงานได้)
-                            await productRef.collection('bids').add({
-                              'price': amount,
-                              'timestamp':
-                                  FieldValue.serverTimestamp(), // ใช้เวลาจากเซิร์ฟเวอร์ Firebase ชัวร์สุด
-                              'userId':
-                                  myUid ??
-                                  "unknown_user", // ใช้ UID ของผู้ใช้ที่ล็อกอินอยู่
-                            });
-
-                            // 4. (ทางเลือก) แสดงข้อความแจ้งเตือนว่าประมูลสำเร็จแล้ว
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Bid placed successfully! 🎉',
+                      
+/* --- ส่วนลงประมูล --- */
+                      (myUid != null && sellerUid.isNotEmpty && myUid == sellerUid)
+                          ? Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.lock_outline, color: Colors.grey, size: 32),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    "นี่คือสินค้าของคุณ คุณไม่สามารถประมูลได้",
+                                    style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                                   ),
-                                  backgroundColor: Colors.green,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            // กรณีเกิด Error (เช่น เน็ตหลุด)
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to place bid: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        endTime: endTime,
-                      ),
-                      const SizedBox(height: 20),
-                      /* ส่วนผู้สร้างประมูล */
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(
-                            255,
-                            255,
-                            255,
-                            255,
-                          ), // สีพื้นหลังฟ้าอ่อนตามรูป
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                0.05,
-                              ), // สีของเงา (แนะนำให้ใช้สีดำจางๆ)
-                              spreadRadius: 1, // การขยายตัวของเงา
-                              blurRadius: 10, // ความฟุ้งของเงา (ยิ่งมากยิ่งนวล)
-                              offset: const Offset(
-                                0,
-                                4,
-                              ), // ระยะเยื้องของเงา (x, y) ในที่นี้คือเยื้องลงล่าง 4 unit
+                                ],
+                              ),
+                            )
+                          : BidActionCard(
+                              currentPrice: data['currentPrice'],
+                              bidCount: 0,
+                              onBidPlaced: (amount) async {
+                                // 2. ตรวจสอบราคาประมูลว่าน้อยกว่าหรือเท่ากับราคาปัจจุบันหรือไม่
+                                double currentHighestPrice = (data['currentPrice'] ?? 0).toDouble();
+                                if (amount <= currentHighestPrice) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('กรุณาใส่ราคาที่มากกว่าราคาปัจจุบัน!'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                  return; // หยุดการทำงาน ไม่ส่งข้อมูลขึ้นฐานข้อมูล
+                                }
+
+                                try {
+                                  final productRef = FirebaseFirestore.instance
+                                      .collection('Products')
+                                      .doc(widget.productId);
+
+                                  await productRef.update({
+                                    'currentPrice': amount,
+                                    'totalBids': FieldValue.increment(1), 
+                                  });
+
+                                  await productRef.collection('bids').add({
+                                    'price': amount,
+                                    'timestamp': FieldValue.serverTimestamp(),
+                                    'userId': myUid ?? "unknown_user", 
+                                  });
+
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text('Bid placed successfully! 🎉'),
+                                        backgroundColor: Colors.green,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to place bid: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              endTime: endTime,
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const SizedBox(height: 20),
+                      
+                      /* --- ส่วนผู้สร้างประมูล --- */
+                      FutureBuilder<DocumentSnapshot>(
+                        future: sellerUid.isNotEmpty 
+                            ? FirebaseFirestore.instance.collection('Users').doc(sellerUid).get() 
+                            : null,
+                        builder: (context, userSnapshot) {
+                          String displaySellerName = fallbackSellerName;
+                          String? profileImageBase64;
+
+                          if (userSnapshot.connectionState == ConnectionState.done && 
+                              userSnapshot.hasData && 
+                              userSnapshot.data!.exists) {
+                            var userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                            displaySellerName = userData['displayName'] ?? fallbackSellerName;
+                            profileImageBase64 = userData['profileImage'];
+                          }
+
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  spreadRadius: 1,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: Colors.grey[300],
-                                      child: const Icon(
-                                        Icons.person,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    Row(
                                       children: [
-                                        Text(
-                                          data['sellerId'] ?? "Unknown Seller",
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                        CircleAvatar(
+                                          radius: 20,
+                                          backgroundColor: Colors.grey[300],
+                                          backgroundImage: (profileImageBase64 != null && profileImageBase64.isNotEmpty)
+                                              ? MemoryImage(base64Decode(profileImageBase64))
+                                              : null,
+                                          child: (profileImageBase64 == null || profileImageBase64.isEmpty)
+                                              ? const Icon(Icons.person, color: Colors.white)
+                                              : null,
                                         ),
-                                        Row(
+                                        const SizedBox(width: 12),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Icon(
-                                              Icons.star,
-                                              color: Colors.amber,
-                                              size: 16,
-                                            ),
                                             Text(
-                                              '${data['sellerRating'] ?? "N/A"} • ${data['sellerSales'] ?? "0"} sales',
-                                              style: TextStyle(
-                                                color: Colors.grey,
-                                              ),
+                                              displaySellerName,
+                                              style: const TextStyle(fontWeight: FontWeight.bold),
                                             ),
-                                            const SizedBox(width: 4),
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.star, color: Colors.amber, size: 16),
+                                                Text(
+                                                  '${data['sellerRating'] ?? "N/A"} • ${data['sellerSales'] ?? "0"} sales',
+                                                  style: const TextStyle(color: Colors.grey),
+                                                ),
+                                                const SizedBox(width: 4),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                                OutlinedButton(
-                                  onPressed: () {},
-                                  style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(
-                                      color: Colors.grey,
-                                      width: 1,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.chat_bubble_outline,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "Chat",
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontWeight: FontWeight.bold,
+                                    OutlinedButton(
+                                      onPressed: () {},
+                                      style: OutlinedButton.styleFrom(
+                                        side: const BorderSide(color: Colors.grey, width: 1),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                      child: Row(
+                                        children: const [
+                                          Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
+                                          SizedBox(width: 4),
+                                          Text("Chat", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        }
                       ),
+
                       const SizedBox(height: 20),
                       const Text(
                         "Description",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         data['description'] ?? "",
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          height: 1.5,
-                        ),
+                        style: TextStyle(color: Colors.grey.shade700, height: 1.5),
                       ),
                       const SizedBox(height: 20),
+                      
+                      /* --- [แก้ไข] ส่วนประวัติการประมูล --- */
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             "Bid History",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
-                          // ตัวอย่างการเรียกใช้ Widget ที่เราสร้าง
                           StreamBuilder<QuerySnapshot>(
                             stream: FirebaseFirestore.instance
                                 .collection('Products')
-                                .doc(
-                                  widget.productId,
-                                ) // อ้างอิง ID ของสินค้าหน้านี้
-                                .collection(
-                                  'bids',
-                                ) // เข้าไปที่ Subcollection 'bids'
-                                .orderBy(
-                                  'timestamp',
-                                  descending: true,
-                                ) // สำคัญ: เรียงจากเวลาล่าสุด (หรือราคาแพงสุด) ขึ้นก่อน
+                                .doc(widget.productId)
+                                .collection('bids')
+                                .orderBy('timestamp', descending: true)
                                 .snapshots(),
                             builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const Center(
-                                  child: CircularProgressIndicator(),
-                                );
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator());
                               }
 
-                              if (!snapshot.hasData ||
-                                  snapshot.data!.docs.isEmpty) {
-                                return const Text(
-                                  "No bids yet. Be the first!",
-                                  style: TextStyle(color: Colors.grey),
-                                );
+                              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                                return const Text("No bids yet. Be the first!", style: TextStyle(color: Colors.grey));
                               }
 
                               final bids = snapshot.data!.docs;
 
                               return ListView.builder(
                                 padding: EdgeInsets.zero,
-                                shrinkWrap:
-                                    true, // สำคัญมาก! ต้องใส่เมื่อ ListView อยู่ใน Column หรือ SingleChildScrollView
-                                physics:
-                                    const NeverScrollableScrollPhysics(), // ป้องกันไม่ให้มัน Scroll แย่งกับ SingleChildScrollView ตัวแม่
-                                itemCount: bids.length, // จำนวนรายการทั้งหมด
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: bids.length,
                                 itemBuilder: (context, index) {
-                                  // ดึงข้อมูลแต่ละแถวออกมาตาม index
-                                  var bidData =
-                                      bids[index].data()
-                                          as Map<String, dynamic>;
-
-                                  // ถ้าเราเรียงจากแพงสุด->ถูกสุด หรือ ล่าสุด->เก่าสุด แล้ว
-                                  // อันดับแรกสุด (index == 0) ก็คือ Highest Bid เสมอครับ!
+                                  var bidData = bids[index].data() as Map<String, dynamic>;
                                   bool isHighest = index == 0;
+                                  String bidderUid = bidData['userId'] ?? "";
+                                  double amount = (bidData['price'] ?? 0).toDouble();
+                                  
+                                  // แปลงเวลาให้สวยงาม
+                                  Timestamp? ts = bidData['timestamp'] as Timestamp?;
+                                  String timeAgo = ts != null 
+                                      ? DateFormat('dd MMM, HH:mm').format(ts.toDate()) 
+                                      : "Just now";
 
-                                  // แปลง Timestamp จาก Firebase กลับเป็น DateTime
-                                  DateTime bidTime =
-                                      (bidData['timestamp'] as Timestamp)
-                                          .toDate();
+                                  return FutureBuilder<DocumentSnapshot>(
+                                    future: bidderUid.isNotEmpty 
+                                        ? FirebaseFirestore.instance.collection('Users').doc(bidderUid).get() 
+                                        : null,
+                                    builder: (context, userSnapshot) {
+                                      String displayName = "Anonymous";
+                                      String? profileImageBase64;
 
-                                  return BidHistoryItem(
-                                    username:
-                                        bidData['userId'] ??
-                                        "Anonymous", // ดึงชื่อจาก Firebase
-                                    timeAgo:
-                                        "Just now", // ใส่ Hardcode ไว้ก่อนเดี๋ยวมาแก้
-                                    amount: (bidData['price'] ?? 0)
-                                        .toDouble(), // ดึงราคาจาก Firebase
-                                    isHighest:
-                                        isHighest, // ส่งค่า true เฉพาะบรรทัดแรก
+                                      if (userSnapshot.connectionState == ConnectionState.done && 
+                                          userSnapshot.hasData && 
+                                          userSnapshot.data!.exists) {
+                                        var userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                                        displayName = userData['displayName'] ?? "Anonymous";
+                                        profileImageBase64 = userData['profileImage'];
+                                      }
+
+                                      // สร้าง UI รายการประมูลตรงนี้เลย เพื่อให้รองรับรูป Base64 และไฮไลท์คนให้ราคาสูงสุด
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isHighest ? const Color(0xFF6347EB).withOpacity(0.05) : Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isHighest ? const Color(0xFF6347EB).withOpacity(0.3) : Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 20,
+                                              backgroundColor: Colors.grey.shade200,
+                                              backgroundImage: (profileImageBase64 != null && profileImageBase64.isNotEmpty)
+                                                  ? MemoryImage(base64Decode(profileImageBase64))
+                                                  : null,
+                                              child: (profileImageBase64 == null || profileImageBase64.isEmpty)
+                                                  ? const Icon(Icons.person, color: Colors.grey)
+                                                  : null,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    displayName,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: isHighest ? const Color(0xFF6347EB) : Colors.black87,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    timeAgo,
+                                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Column(
+                                              crossAxisAlignment: CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  "฿${NumberFormat('#,###').format(amount)}",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color: isHighest ? const Color(0xFF6347EB) : Colors.black87,
+                                                  ),
+                                                ),
+                                                if (isHighest)
+                                                  Container(
+                                                    margin: const EdgeInsets.only(top: 4),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(0xFF6347EB),
+                                                      borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                    child: const Text(
+                                                      "Highest",
+                                                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   );
                                 },
                               );
