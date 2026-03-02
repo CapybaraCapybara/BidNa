@@ -2,7 +2,9 @@ import 'package:bidna/widgets/filter_modal.dart';
 import 'package:bidna/widgets/product_card.dart';
 import 'package:bidna/screens/product_details_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:bidna/screens/notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,7 +15,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // State สำหรับ Filter
-  RangeValues _currentPriceRange = const RangeValues(0, 100000); // ตั้ง Max เยอะๆ ไว้ก่อน
+  RangeValues _currentPriceRange = const RangeValues(
+    0,
+    100000,
+  ); // ตั้ง Max เยอะๆ ไว้ก่อน
   String _selectedStatus = "All";
   String _searchQuery = "";
   String selectedCategory = "All";
@@ -23,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     "Electronics",
     "Fashion",
     "Collections",
-    "Others"
+    "Others",
   ];
 
   void _openFilter() {
@@ -57,10 +62,59 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Text("Bidna", style: TextStyle(color: Colors.black87)),
             Row(
-              children: const [
+              children: [
                 Icon(Icons.chat_bubble_outline, color: Colors.black54),
                 SizedBox(width: 20),
-                Icon(Icons.notifications_none, color: Colors.black54),
+                StreamBuilder<QuerySnapshot>(
+                  // 1. ดึงข้อมูล User ปัจจุบันก่อน
+                  stream: FirebaseAuth.instance.currentUser != null
+                      ? FirebaseFirestore.instance
+                            .collection('Users')
+                            .doc(FirebaseAuth.instance.currentUser!.uid)
+                            .collection('notifications')
+                            .where('isRead', isEqualTo: false)
+                            .snapshots()
+                      : const Stream.empty(),
+                  builder: (context, snapshot) {
+                    // 2. คำนวณจำนวนแจ้งเตือน
+                    int unreadCount = 0;
+                    if (snapshot.hasData) {
+                      unreadCount = snapshot.data!.docs.length;
+                    }
+
+                    // 3. ใช้ Badge ของ Flutter ครอบ Icon ไว้
+                    return Badge(
+                      isLabelVisible:
+                          unreadCount > 0, // ซ่อน Badge ถ้าไม่มีแจ้งเตือน
+                      label: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      ),
+                      backgroundColor: Colors.redAccent,
+                      offset: const Offset(
+                        4,
+                        -4,
+                      ), // ขยับจุดแดงให้พอดีกับกระดิ่งนิดนึง
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const NotificationScreen(),
+                            ),
+                          );
+                        },
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ],
@@ -111,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          
+
           // --- Category Selector ---
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -168,29 +222,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 1. กรอง Category
                   // ต้องดูว่าใน Firebase field ชื่อ 'category' ตรงกับที่เราส่งไปไหม
                   final itemCategory = data['category'] ?? "Others";
-                  final categoryMatch = selectedCategory == "All" || itemCategory == selectedCategory;
+                  final categoryMatch =
+                      selectedCategory == "All" ||
+                      itemCategory == selectedCategory;
 
                   // 2. กรองราคา
                   final price = (data['currentPrice'] ?? 0).toDouble();
-                  final priceMatch = price >= _currentPriceRange.start &&
-                                     price <= _currentPriceRange.end;
+                  final priceMatch =
+                      price >= _currentPriceRange.start &&
+                      price <= _currentPriceRange.end;
 
                   // 3. กรองชื่อ (Search)
                   final title = (data['title'] ?? "").toString().toLowerCase();
-                  final searchMatch = title.contains(_searchQuery.toLowerCase());
+                  final searchMatch = title.contains(
+                    _searchQuery.toLowerCase(),
+                  );
 
                   // 4. กรองสถานะ (Status)
                   final status = data['status'] ?? "Open";
-                  final statusMatch = _selectedStatus == "All" || status == _selectedStatus;
+                  final statusMatch =
+                      _selectedStatus == "All" || status == _selectedStatus;
 
-                  return categoryMatch && priceMatch && searchMatch && statusMatch;
+                  return categoryMatch &&
+                      priceMatch &&
+                      searchMatch &&
+                      statusMatch;
                 }).toList();
 
                 // --- ส่วนหัว Live Auctions และจำนวนสินค้า ---
                 return Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -205,37 +271,43 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                       ),
                     ),
-                    
+
                     // --- GridView แสดงสินค้า ---
                     Expanded(
-                      child: filteredDocs.isEmpty 
-                      ? const Center(child: Text("No products found"))
-                      : GridView.builder(
-                        padding: const EdgeInsets.all(10),
-                        itemCount: filteredDocs.length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemBuilder: (context, index) {
-                          final doc = filteredDocs[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          final String docId = doc.id; // ดึง ID document
+                      child: filteredDocs.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : GridView.builder(
+                              padding: const EdgeInsets.all(10),
+                              itemCount: filteredDocs.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 10,
+                                    mainAxisSpacing: 10,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final doc = filteredDocs[index];
+                                final data = doc.data() as Map<String, dynamic>;
+                                final String docId = doc.id; // ดึง ID document
 
-                          return ProductCard(
-                            data: data,        // ส่ง Map เข้าไปเลย
-                            productId: docId,  // ส่ง ID แยก
-                            onTap: () {
-                              // ไปหน้า Detail
-                              Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => ProductDetailsPage(productId: docId)
-                              ));
-                            },
-                          );
-                        },
-                      ),
+                                return ProductCard(
+                                  data: data, // ส่ง Map เข้าไปเลย
+                                  productId: docId, // ส่ง ID แยก
+                                  onTap: () {
+                                    // ไปหน้า Detail
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ProductDetailsPage(
+                                          productId: docId,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                     ),
                   ],
                 );

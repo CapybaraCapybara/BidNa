@@ -82,50 +82,94 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       const SizedBox(height: 15),
                       /* ส่วนลงประมูล */
                       BidActionCard(
-                        currentPrice: data['currentPrice'],
+                        currentPrice: (data['currentPrice'] ?? 0).toDouble(),
                         bidCount: 0,
                         onBidPlaced: (amount) async {
                           try {
-                            // 1. อ้างอิงไปยังตำแหน่งของสินค้าชิ้นนี้ใน Firestore
+                            final currentUser =
+                                FirebaseAuth.instance.currentUser;
+                            if (currentUser == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please login to place a bid!'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            // อ้างอิง Product นี้
                             final productRef = FirebaseFirestore.instance
                                 .collection('Products')
                                 .doc(widget.productId);
 
-                            // 2. สั่งอัปเดตข้อมูลใน Document ตัวแม่ (ราคาสูงสุด และบวกจำนวนคนประมูลเพิ่ม 1)
+                            // ---------------------------------------------------------
+                            // 🌟 STEP 1: หาตัว "ผู้ชนะคนปัจจุบัน" (ก่อนที่เราจะประมูลทับ)
+                            // ---------------------------------------------------------
+                            final lastBidSnapshot = await productRef
+                                .collection('bids')
+                                .orderBy(
+                                  'price',
+                                  descending: true,
+                                ) // เรียงจากราคาแพงสุด
+                                .limit(1) // เอาแค่คนเดียวที่อยู่บนสุด
+                                .get();
+
+                            String? previousWinnerId;
+                            if (lastBidSnapshot.docs.isNotEmpty) {
+                              previousWinnerId = lastBidSnapshot
+                                  .docs
+                                  .first['userId']; // เก็บ UID ของคนนั้นไว้
+                            }
+
+                            // ---------------------------------------------------------
+                            // 🌟 STEP 2: อัปเดตราคาใหม่ และเพิ่มประวัติของเรา (โค้ดเดิม)
+                            // ---------------------------------------------------------
                             await productRef.update({
                               'currentPrice': amount,
-                              'totalBids': FieldValue.increment(
-                                1,
-                              ), // 💡 ทริค: สั่งให้ Firebase บวกเลขเพิ่ม 1 อัตโนมัติ
+                              'totalBids': FieldValue.increment(1),
                             });
 
-                            // 3. บันทึกประวัติการประมูลลงใน Subcollection 'bids' (เพื่อให้ ListView ทำงานได้)
                             await productRef.collection('bids').add({
                               'price': amount,
-                              'timestamp':
-                                  FieldValue.serverTimestamp(), // ใช้เวลาจากเซิร์ฟเวอร์ Firebase ชัวร์สุด
-                              'userId':
-                                  myUid ??
-                                  "unknown_user", // ใช้ UID ของผู้ใช้ที่ล็อกอินอยู่
+                              'timestamp': FieldValue.serverTimestamp(),
+                              'userId': currentUser.uid,
                             });
 
-                            // 4. (ทางเลือก) แสดงข้อความแจ้งเตือนว่าประมูลสำเร็จแล้ว
+                            // ---------------------------------------------------------
+                            // 🌟 STEP 3: แจ้งเตือนคนโดนปาดหน้า (OUTBID)
+                            // ---------------------------------------------------------
+                            // เงื่อนไข: ต้องมีคนเคยประมูลไว้ก่อน (!= null) และ คนๆ นั้นต้อง "ไม่ใช่ตัวเราเอง"
+                            if (previousWinnerId != null &&
+                                previousWinnerId != currentUser.uid) {
+                              // ยิงข้อมูลเข้าไปที่ Collection ย่อย notifications ของคนที่โดนปาด
+                              await FirebaseFirestore.instance
+                                  .collection('Users')
+                                  .doc(
+                                    previousWinnerId,
+                                  ) // 👈 เล็งเป้าไปที่ UID ของคนที่โดนปาด
+                                  .collection('notifications')
+                                  .add({
+                                    'title': 'You have been outbid! 😱',
+                                    'message':
+                                        'Someone placed a higher bid of ฿${amount.toStringAsFixed(0)} on your item.',
+                                    'isRead': false, // ยังไม่ได้อ่าน
+                                    'type': 'OUTBID',
+                                    'productId': widget
+                                        .productId, // ใส่ ID สินค้าไว้เผื่อกดเข้าไปดู
+                                    'createdAt': FieldValue.serverTimestamp(),
+                                  });
+                            }
+
+                            // แสดงข้อความบนหน้าจอว่าประมูลสำเร็จ
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text(
-                                    'Bid placed successfully! 🎉',
-                                  ),
+                                const SnackBar(
+                                  content: Text('Bid placed successfully! 🎉'),
                                   backgroundColor: Colors.green,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
                                 ),
                               );
                             }
                           } catch (e) {
-                            // กรณีเกิด Error (เช่น เน็ตหลุด)
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
@@ -313,35 +357,59 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               return ListView.builder(
                                 padding: EdgeInsets.zero,
                                 shrinkWrap:
-                                    true, // สำคัญมาก! ต้องใส่เมื่อ ListView อยู่ใน Column หรือ SingleChildScrollView
+                                    true,
                                 physics:
-                                    const NeverScrollableScrollPhysics(), // ป้องกันไม่ให้มัน Scroll แย่งกับ SingleChildScrollView ตัวแม่
-                                itemCount: bids.length, // จำนวนรายการทั้งหมด
+                                    const NeverScrollableScrollPhysics(),
+                                itemCount: bids.length,
                                 itemBuilder: (context, index) {
-                                  // ดึงข้อมูลแต่ละแถวออกมาตาม index
                                   var bidData =
                                       bids[index].data()
                                           as Map<String, dynamic>;
 
-                                  // ถ้าเราเรียงจากแพงสุด->ถูกสุด หรือ ล่าสุด->เก่าสุด แล้ว
-                                  // อันดับแรกสุด (index == 0) ก็คือ Highest Bid เสมอครับ!
                                   bool isHighest = index == 0;
-
-                                  // แปลง Timestamp จาก Firebase กลับเป็น DateTime
                                   DateTime bidTime =
                                       (bidData['timestamp'] as Timestamp)
                                           .toDate();
+                                  String userId = bidData['userId'] ?? "";
 
-                                  return BidHistoryItem(
-                                    username:
-                                        bidData['userId'] ??
-                                        "Anonymous", // ดึงชื่อจาก Firebase
-                                    timeAgo:
-                                        "Just now", // ใส่ Hardcode ไว้ก่อนเดี๋ยวมาแก้
-                                    amount: (bidData['price'] ?? 0)
-                                        .toDouble(), // ดึงราคาจาก Firebase
-                                    isHighest:
-                                        isHighest, // ส่งค่า true เฉพาะบรรทัดแรก
+                                  // ช้ FutureBuilder ไปดึงข้อมูล User จาก ID
+                                  return FutureBuilder<DocumentSnapshot>(
+                                    future: FirebaseFirestore.instance
+                                        .collection(
+                                          'Users',
+                                        ) 
+                                        .doc(userId)
+                                        .get(),
+                                    builder: (context, userSnapshot) {
+                                      // กำหนดชื่อเริ่มต้นระหว่างรอโหลด หรือหาไม่เจอ
+                                      String displayName = "Loading...";
+
+                                      // ถ้าโหลดข้อมูล User เสร็จแล้วและมีข้อมูลอยู่จริง
+                                      if (userSnapshot.connectionState ==
+                                          ConnectionState.done) {
+                                        if (userSnapshot.hasData &&
+                                            userSnapshot.data!.exists) {
+                                          var userData =
+                                              userSnapshot.data!.data()
+                                                  as Map<String, dynamic>;
+                                          displayName =
+                                              userData['displayName'] ??
+                                              "Anonymous";
+                                        } else {
+                                          displayName =
+                                              "Unknown User"; // กรณีหา UID นี้ไม่เจอในระบบ
+                                        }
+                                      }
+
+                                      return BidHistoryItem(
+                                        username:
+                                            displayName,
+                                        timeAgo: "Just now",
+                                        amount: (bidData['price'] ?? 0)
+                                            .toDouble(),
+                                        isHighest: isHighest,
+                                      );
+                                    },
                                   );
                                 },
                               );
