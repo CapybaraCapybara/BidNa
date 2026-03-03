@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:bidna/screens/profile_page.dart';
 import 'package:bidna/widgets/filter_modal.dart';
 import 'package:bidna/widgets/product_card.dart';
 import 'package:bidna/screens/product_details_page.dart';
@@ -5,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:bidna/screens/notification_screen.dart';
+import 'package:bidna/widgets/custom_app_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -57,73 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text("Bidna", style: TextStyle(color: Colors.black87)),
-            Row(
-              children: [
-                Icon(Icons.chat_bubble_outline, color: Colors.black54),
-                SizedBox(width: 20),
-                StreamBuilder<QuerySnapshot>(
-                  // 1. ดึงข้อมูล User ปัจจุบันก่อน
-                  stream: FirebaseAuth.instance.currentUser != null
-                      ? FirebaseFirestore.instance
-                            .collection('Users')
-                            .doc(FirebaseAuth.instance.currentUser!.uid)
-                            .collection('notifications')
-                            .where('isRead', isEqualTo: false)
-                            .snapshots()
-                      : const Stream.empty(),
-                  builder: (context, snapshot) {
-                    // 2. คำนวณจำนวนแจ้งเตือน
-                    int unreadCount = 0;
-                    if (snapshot.hasData) {
-                      unreadCount = snapshot.data!.docs.length;
-                    }
-
-                    // 3. ใช้ Badge ของ Flutter ครอบ Icon ไว้
-                    return Badge(
-                      isLabelVisible:
-                          unreadCount > 0, // ซ่อน Badge ถ้าไม่มีแจ้งเตือน
-                      label: Text(
-                        unreadCount > 99 ? '99+' : unreadCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                      backgroundColor: Colors.redAccent,
-                      offset: const Offset(
-                        4,
-                        -4,
-                      ), // ขยับจุดแดงให้พอดีกับกระดิ่งนิดนึง
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const NotificationScreen(),
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.notifications_none,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Column(
+        appBar: const CustomAppBar(),
+        body: Column(
         children: [
           const SizedBox(height: 20),
           // --- Search Bar ---

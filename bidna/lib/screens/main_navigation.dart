@@ -14,16 +14,14 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
-  // เพิ่มหน้าลงไปใน List ให้ครบ 5 หน้าตรงกับไอคอนด้านล่าง
   final List<Widget> _pages = [
     const HomeScreen(),
     CreateListingBase64(),
     const Center(child: Text("หน้า Chat", style: TextStyle(fontSize: 24))),
     const MyBidPage(),
-    const ProfilePage(),
   ];
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
@@ -33,10 +31,10 @@ class _MainNavigationState extends State<MainNavigation> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) => setState(() => _selectedIndex = index),
-        selectedItemColor: const Color(0xFF6347EB), // สีม่วงธีมแอป
+        selectedItemColor: const Color(0xFF6347EB),
         unselectedItemColor: Colors.grey,
-        // สำคัญมาก: เมื่อมีไอเทมมากกว่า 3 อัน ต้องใส่ type เป็น fixed เพื่อให้โชว์ครบทุกตัวและสีไม่เพี้ยน
         type: BottomNavigationBarType.fixed, 
+        // แก้ไข items ให้เหลือ 4 อัน
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.explore), 
@@ -51,12 +49,8 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Chat'
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.gavel), // ใช้ไอคอนค้อนประมูลให้เข้ากับ MyBid
+            icon: Icon(Icons.gavel), 
             label: 'MyBid'
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), 
-            label: 'Profile'
           ),
         ],
       ),
