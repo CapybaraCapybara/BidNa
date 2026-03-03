@@ -153,7 +153,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   await productRef.update({
                                     'currentPrice': amount,
                                     'totalBids': FieldValue.increment(1), 
-                                    'bidders': FieldValue.arrayUnion([myUid]), // บันทึก UID ของเราไว้ในตัวสินค้า
+                                    'bidders': FieldValue.arrayUnion([myUid]), 
+                                    
+                                    // [เพิ่มบรรทัดนี้] จำ UID ของคนที่ให้ราคาสูงสุด ณ ปัจจุบัน
+                                    'highestBidderUid': myUid, 
                                   });
 
                                   await productRef.collection('bids').add({

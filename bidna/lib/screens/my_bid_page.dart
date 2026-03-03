@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/widgets/product_card.dart'; // ดึง ProductCard ที่คุณมีอยู่แล้วมาใช้
+import 'package:bidna/widgets/product_card.dart';
 import 'package:bidna/screens/product_details_page.dart';
 
 class MyBidPage extends StatefulWidget {
@@ -13,12 +13,11 @@ class MyBidPage extends StatefulWidget {
 
 class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String _selectedStatus = 'All'; // ค่าเริ่มต้นให้แสดงทั้งหมด (All, Open, Close)
+  String _selectedStatus = 'All'; 
 
   @override
   void initState() {
     super.initState();
-    // สร้าง Tab จำนวน 2 หน้า
     _tabController = TabController(length: 2, vsync: this);
   }
 
@@ -37,7 +36,6 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // --- ตัวกรองสถานะ (All, Open, Close) ---
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: DropdownButtonHideUnderline(
@@ -84,27 +82,21 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ฟังก์ชันสร้าง Grid สินค้า (ใช้ร่วมกันทั้ง 2 แท็บ)
   Widget _buildProductList({required bool isMyListing}) {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Center(child: Text("กรุณาเข้าสู่ระบบ"));
     }
 
-    // สร้างเงื่อนไขในการค้นหา Firebase
     Query query = FirebaseFirestore.instance.collection('Products');
     
     if (isMyListing) {
-      // กรณี: สินค้าที่ฉันลงขาย
       query = query.where('sellerUid', isEqualTo: user.uid);
     } else {
-      // กรณี: รายการที่ฉันเคยเข้าไปประมูล (ค้นหา UID ใน Array 'bidders')
       query = query.where('bidders', arrayContains: user.uid);
     }
 
     return StreamBuilder<QuerySnapshot>(
-      // เราดึงข้อมูลดิบมาก่อน แล้วค่อยมาจัดเรียง(Sort) และกรอง(Filter) ในเครื่อง 
-      // เพื่อป้องกัน Error เรื่อง Composite Index ของ Firebase
       stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -121,7 +113,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
 
         var docs = snapshot.data!.docs;
 
-        // 1. นำมากรองสถานะ (Open / Close) ตาม Dropdown ที่เลือก
+        // 1. กรองสถานะ
         if (_selectedStatus != 'All') {
           docs = docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
@@ -130,7 +122,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           }).toList();
         }
 
-        // 2. จัดเรียงเวลาจากใหม่สุด ไปเก่าสุด (เทียบจาก startTime)
+        // 2. เรียงเวลา
         docs.sort((a, b) {
           final aData = a.data() as Map<String, dynamic>;
           final bData = b.data() as Map<String, dynamic>;
@@ -148,30 +140,91 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           );
         }
 
-        // 3. แสดงผลเป็น GridView เหมือนหน้า Home
-        return GridView.builder(
-          padding: const EdgeInsets.all(10),
-          itemCount: docs.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-          ),
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            final String docId = doc.id;
+        // --- 3. ตรวจสอบว่าเป็นการแสดงผลแท็บไหน ---
+        if (isMyListing) {
+          // แท็บ 2 (ฉันลงขาย): แสดง Grid ธรรมดา
+          return _buildGridView(docs);
+        } else {
+          // แท็บ 1 (ฉันประมูล): แยกสินค้าเป็น 2 กอง (นำอยู่ vs โดนแซง)
+          List<DocumentSnapshot> leadingDocs = [];
+          List<DocumentSnapshot> outbidDocs = [];
 
-            return ProductCard(
-              data: data,
-              productId: docId,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ProductDetailsPage(productId: docId)),
-                );
-              },
+          for (var doc in docs) {
+            var data = doc.data() as Map<String, dynamic>;
+            if (data['highestBidderUid'] == user.uid) {
+              leadingDocs.add(doc);
+            } else {
+              outbidDocs.add(doc);
+            }
+          }
+
+          // แสดงผลแบบแยกหัวข้อ
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (leadingDocs.isNotEmpty) ...[
+                  _buildSectionHeader("👑 สินค้าที่กำลังนำอยู่ (Leading)", Colors.green.shade600),
+                  _buildGridView(leadingDocs),
+                ],
+                if (outbidDocs.isNotEmpty) ...[
+                  _buildSectionHeader("⚠️ สินค้าที่โดนแซงแล้ว (Outbid)", Colors.redAccent),
+                  _buildGridView(outbidDocs),
+                ],
+                if (leadingDocs.isEmpty && outbidDocs.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 50),
+                      child: Text("ไม่มีข้อมูล", style: TextStyle(color: Colors.grey)),
+                    ),
+                  ),
+                const SizedBox(height: 30), // เว้นระยะล่างสุด
+              ],
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  // --- Widget ตัวช่วยสำหรับสร้างหัวข้อ ---
+  Widget _buildSectionHeader(String title, Color color) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  // --- Widget ตัวช่วยสำหรับสร้าง GridView ของสินค้า ---
+  Widget _buildGridView(List<DocumentSnapshot> docsList) {
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      shrinkWrap: true, // สำคัญมาก เพื่อให้เลื่อนไปพร้อมกับ SingleChildScrollView ได้
+      physics: const NeverScrollableScrollPhysics(), 
+      itemCount: docsList.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.75,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+      ),
+      itemBuilder: (context, index) {
+        final doc = docsList[index];
+        final data = doc.data() as Map<String, dynamic>;
+        return ProductCard(
+          data: data,
+          productId: doc.id,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => ProductDetailsPage(productId: doc.id)),
             );
           },
         );
