@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bidna/screens/chat_screens.dart'; // แก้เป็น chat_screen.dart ให้ตรงกับไฟล์ที่สร้าง
 import 'package:intl/intl.dart'; // สำหรับจัด Format ตัวเลขและวันที่
 
 class ProductDetailsPage extends StatefulWidget {
@@ -283,22 +284,49 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         ),
                                       ],
                                     ),
+                                    
+                                    // 🟢 ปุ่ม Chat ที่อัปเดตแล้ว
                                     OutlinedButton(
-                                      onPressed: () {},
+                                      onPressed: () {
+                                        if (currentUser == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text("กรุณาเข้าสู่ระบบเพื่อแชท")),
+                                          );
+                                          return;
+                                        }
+                                        if (myUid == sellerUid) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text("คุณไม่สามารถแชทกับตัวเองได้")),
+                                          );
+                                          return;
+                                        }
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ChatScreen(
+                                              peerId: sellerUid,
+                                              peerName: displaySellerName,
+                                              peerAvatarBase64: profileImageBase64,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                       style: OutlinedButton.styleFrom(
                                         side: const BorderSide(color: Colors.grey, width: 1),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                       ),
-                                      child: Row(
-                                        children: const [
+                                      child: const Row(
+                                        children: [
                                           Icon(Icons.chat_bubble_outline, size: 16, color: Colors.grey),
                                           SizedBox(width: 4),
                                           Text("Chat", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
                                         ],
                                       ),
                                     ),
+                                    
                                   ],
                                 ),
                               ],

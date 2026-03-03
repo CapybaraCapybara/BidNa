@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/notification_screen.dart';
 import 'package:bidna/screens/profile_page.dart';
+import 'package:bidna/screens/chat_list_page.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -34,7 +35,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         // ถือกล่อง actions พิเศษของแต่ละหน้ามาวางตรงนี้ (เช่น ปุ่ม Filter)
         if (extraActions != null) ...extraActions!,
-
+        IconButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ChatListPage()),
+            );
+          },
+          icon: const Icon(Icons.chat_bubble_outline, color: Colors.black87, size: 26),
+        ),
         // 1. กระดิ่งแจ้งเตือน
         Center(
           child: StreamBuilder<QuerySnapshot>(

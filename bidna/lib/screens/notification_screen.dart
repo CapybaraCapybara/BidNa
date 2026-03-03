@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/product_details_page.dart';
+import 'package:bidna/screens/chat_screens.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -22,6 +23,30 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   // ฟังก์ชันเลือก Icon และสีตามประเภทแจ้งเตือน (เผื่ออนาคตมีหลายแบบ)
+  // Widget _buildNotificationIcon(String type) {
+  //   IconData iconData;
+  //   Color bgColor;
+
+  //   switch (type) {
+  //     case 'OUTBID':
+  //       iconData = Icons.gavel_rounded;
+  //       bgColor = Colors.redAccent;
+  //       break;
+  //     case 'WON':
+  //       iconData = Icons.emoji_events_rounded;
+  //       bgColor = Colors.amber;
+  //       break;
+  //     default:
+  //       iconData = Icons.notifications_active;
+  //       bgColor = Colors.blue;
+  //   }
+
+  //   return CircleAvatar(
+  //     radius: 28,
+  //     backgroundColor: bgColor.withOpacity(0.15),
+  //     child: Icon(iconData, color: bgColor, size: 28),
+  //   );
+  // }
   Widget _buildNotificationIcon(String type) {
     IconData iconData;
     Color bgColor;
@@ -34,6 +59,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       case 'WON':
         iconData = Icons.emoji_events_rounded;
         bgColor = Colors.amber;
+        break;
+      case 'CHAT': // 🔴 เพิ่มไอคอนแชท
+        iconData = Icons.chat_bubble_rounded;
+        bgColor = const Color(0xFF6347EB);
         break;
       default:
         iconData = Icons.notifications_active;
@@ -117,7 +146,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     }
                     String timeAgo = _getTimeAgo(createdAt);
 
-                    return InkWell(
+return InkWell(
                       onTap: () async {
                         if (!isRead) {
                           await FirebaseFirestore.instance
@@ -128,12 +157,30 @@ class _NotificationScreenState extends State<NotificationScreen> {
                               .update({'isRead': true});
                         }
 
-                        if (productId.isNotEmpty && context.mounted) {
+                        if (!context.mounted) return;
+
+                        // 🔴 ถ้าเป็นการแจ้งเตือนแบบแชท ให้เปิดหน้า ChatScreen
+                        if (type == 'CHAT') {
+                          String pId = data['peerId'] ?? "";
+                          String pName = data['peerName'] ?? "User";
+                          if (pId.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ChatScreen(
+                                  peerId: pId,
+                                  peerName: pName,
+                                ),
+                              ),
+                            );
+                          }
+                        } 
+                        // ถ้าเป็นการแจ้งเตือนประมูล ให้เปิดหน้าสินค้า
+                        else if (productId.isNotEmpty) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  ProductDetailsPage(productId: productId),
+                              builder: (context) => ProductDetailsPage(productId: productId),
                             ),
                           );
                         }
