@@ -103,9 +103,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 ],
                               ),
                             )
-                          : BidActionCard(
+                              : BidActionCard(
                               currentPrice: (data['currentPrice'] ?? 0).toDouble(),
-                              bidCount: 0,
+                              
+                              // [แก้ไข] ดึงจำนวน Bids ทั้งหมดจาก Database (จากที่เคยใส่เป็น 0)
+                              bidCount: (data['totalBids'] ?? 0).toInt(),
+                              
+                              // [เพิ่ม] ส่งค่าบิดขั้นต่ำเข้าไปให้ Widget คำนวณ (ถ้าไม่มีให้เป็น 1)
+                              minBidIncrement: (data['minBidIncrement'] ?? 1).toDouble(), 
+
                               onBidPlaced: (amount) async {
                                 if (currentUser == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -114,8 +120,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                   return;
                                 }
 
-                                // ตรวจสอบราคาประมูลว่าน้อยกว่าหรือเท่ากับราคาปัจจุบันหรือไม่
                                 double currentHighestPrice = (data['currentPrice'] ?? 0).toDouble();
+                                double minBidIncrement = (data['minBidIncrement'] ?? 1).toDouble(); 
+
+                                // 1. ตรวจสอบว่าน้อยกว่าราคาปัจจุบันหรือไม่
                                 if (amount <= currentHighestPrice) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -125,10 +133,26 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                       ),
                                     );
                                   }
-                                  return; // หยุดการทำงาน ไม่ส่งข้อมูลขึ้นฐานข้อมูล
+                                  return;
+                                }
+
+                                // 2. ตรวจสอบว่าถึงเกณฑ์บิดขั้นต่ำหรือไม่
+                                if (amount < currentHighestPrice + minBidIncrement) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'กรุณาเพิ่มราคาขั้นต่ำ ฿${minBidIncrement.toStringAsFixed(0)} (ขั้นต่ำที่บิดได้คือ ฿${(currentHighestPrice + minBidIncrement).toStringAsFixed(0)})'
+                                        ),
+                                        backgroundColor: Colors.orange.shade700,
+                                      ),
+                                    );
+                                  }
+                                  return;
                                 }
 
                                 try {
+                                  // ... (โค้ดอัปเดต Database ตรงนี้ของคุณยังเหมือนเดิมเป๊ะๆ ครับ)
                                   final productRef = FirebaseFirestore.instance
                                       .collection('Products')
                                       .doc(widget.productId);
