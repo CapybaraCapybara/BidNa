@@ -27,7 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
     "All",
     "Electronics",
     "Fashion",
-    "Collections",
+    "Home",
+    "Collectibles",
     "Others",
   ];
 
