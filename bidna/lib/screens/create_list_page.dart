@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // [เพิ่ม] import FirebaseAuth สำหรับดึงข้อมูล User
+import 'package:bidna/widgets/custom_app_bar.dart'; // [เพิ่ม] import CustomAppBar ที่เราสร้างไว้แล้ว
 
 class CreateListingBase64 extends StatefulWidget {
   @override
@@ -125,7 +126,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Listing", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white, elevation: 0),
+      appBar: const CustomAppBar(),
       body: Stack(
         children: [
           SingleChildScrollView(

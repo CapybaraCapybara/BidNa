@@ -18,10 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // State สำหรับ Filter
-  RangeValues _currentPriceRange = const RangeValues(
-    0,
-    100000,
-  ); // ตั้ง Max เยอะๆ ไว้ก่อน
+  RangeValues _currentPriceRange = const RangeValues(0, 100000); 
   String _selectedStatus = "All";
   String _searchQuery = "";
   String selectedCategory = "All";
@@ -60,8 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: const CustomAppBar(),
-        body: Column(
+      appBar: const CustomAppBar(),
+      body: Column(
         children: [
           const SizedBox(height: 20),
           // --- Search Bar ---
@@ -109,19 +106,16 @@ class _HomeScreenState extends State<HomeScreen> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: categories.map((category) {
                 final isSelected = selectedCategory == category;
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: TextButton(
                     onPressed: () {
-                      setState(() {
-                        selectedCategory = category;
-                      });
+                      setState(() => selectedCategory = category);
                     },
                     style: TextButton.styleFrom(
-                      backgroundColor: isSelected ? Colors.blue : Colors.white,
+                      backgroundColor: isSelected ? const Color(0xFF6347EB) : Colors.white,
                       foregroundColor: isSelected ? Colors.white : Colors.black,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -137,110 +131,94 @@ class _HomeScreenState extends State<HomeScreen> {
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              // ดึงข้อมูลทั้งหมดมาก่อน แล้วค่อยมา Filter ในแอป (Client-side filtering)
-              // เพราะการ Filter หลายเงื่อนไขพร้อมกันใน Firestore ต้องทำ Index ยุ่งยาก
               stream: FirebaseFirestore.instance
                   .collection('Products')
                   .orderBy('startTime', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text("Something went wrong"));
-                }
+                if (snapshot.hasError) return const Center(child: Text("Something went wrong"));
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                // ข้อมูลดิบจาก Firebase
                 final docs = snapshot.data!.docs;
 
-                // --- LOGIC การกรองข้อมูล (Filter) อยู่ตรงนี้ ---
+                // --- LOGIC การกรองและการตรวจสอบสถานะสินค้า ---
                 final filteredDocs = docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
+                  final String docId = doc.id;
+                  
+                  // 1. ตรวจสอบการหมดเวลา (Auto-Close)
+                  final DateTime endTime = (data['endTime'] as Timestamp).toDate();
+                  String currentStatus = (data['status'] ?? 'open').toString().toLowerCase();
 
-                  // 1. กรอง Category
-                  // ต้องดูว่าใน Firebase field ชื่อ 'category' ตรงกับที่เราส่งไปไหม
+                  if (DateTime.now().isAfter(endTime) && currentStatus == 'open') {
+                    // อัปเดต DB เมื่อหมดเวลาแต่สถานะยังเป็น open
+                    FirebaseFirestore.instance
+                        .collection('Products')
+                        .doc(docId)
+                        .update({'status': 'closed'});
+                    currentStatus = 'closed'; // ปรับค่าใน memory เพื่อใช้กรองต่อทันที
+                  }
+
+                  // 2. กรอง Category
                   final itemCategory = data['category'] ?? "Others";
-                  final categoryMatch =
-                      selectedCategory == "All" ||
-                      itemCategory == selectedCategory;
+                  final categoryMatch = selectedCategory == "All" || itemCategory == selectedCategory;
 
-                  // 2. กรองราคา
+                  // 3. กรองราคา
                   final price = (data['currentPrice'] ?? 0).toDouble();
-                  final priceMatch =
-                      price >= _currentPriceRange.start &&
-                      price <= _currentPriceRange.end;
+                  final priceMatch = price >= _currentPriceRange.start && price <= _currentPriceRange.end;
 
-                  // 3. กรองชื่อ (Search)
+                  // 4. กรองชื่อ (Search)
                   final title = (data['title'] ?? "").toString().toLowerCase();
-                  final searchMatch = title.contains(
-                    _searchQuery.toLowerCase(),
-                  );
+                  final searchMatch = title.contains(_searchQuery.toLowerCase());
 
-                  // 4. กรองสถานะ (Status)
-                  final status = data['status'] ?? "Open";
-                  final statusMatch =
-                      _selectedStatus == "All" || status == _selectedStatus;
+                  // 5. กรองสถานะ (Status) - ตรวจสอบค่า 'All', 'Open', 'Closed'
+                  final selectedStatusLower = _selectedStatus.toLowerCase();
+                  final statusMatch = _selectedStatus == "All" || currentStatus == selectedStatusLower;
 
-                  return categoryMatch &&
-                      priceMatch &&
-                      searchMatch &&
-                      statusMatch;
+                  return categoryMatch && priceMatch && searchMatch && statusMatch;
                 }).toList();
 
-                // --- ส่วนหัว Live Auctions และจำนวนสินค้า ---
                 return Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             "Live Auctions",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                           ),
                           Text("${filteredDocs.length} items"),
                         ],
                       ),
                     ),
 
-                    // --- GridView แสดงสินค้า ---
                     Expanded(
                       child: filteredDocs.isEmpty
                           ? const Center(child: Text("No products found"))
                           : GridView.builder(
                               padding: const EdgeInsets.all(10),
                               itemCount: filteredDocs.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    childAspectRatio: 0.75,
-                                    crossAxisSpacing: 10,
-                                    mainAxisSpacing: 10,
-                                  ),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio: 0.75,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                              ),
                               itemBuilder: (context, index) {
                                 final doc = filteredDocs[index];
                                 final data = doc.data() as Map<String, dynamic>;
-                                final String docId = doc.id; // ดึง ID document
-
                                 return ProductCard(
-                                  data: data, // ส่ง Map เข้าไปเลย
-                                  productId: docId, // ส่ง ID แยก
+                                  data: data,
+                                  productId: doc.id,
                                   onTap: () {
-                                    // ไปหน้า Detail
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => ProductDetailsPage(
-                                          productId: docId,
-                                        ),
+                                        builder: (_) => ProductDetailsPage(productId: doc.id),
                                       ),
                                     );
                                   },

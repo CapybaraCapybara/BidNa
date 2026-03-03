@@ -29,12 +29,16 @@ class _FilterModalState extends State<FilterModal> {
 
   @override
   Widget build(BuildContext context) {
-    //หาความสูงจอ เพื่อเอามากำหนดขอบเขต
+    // หาความสูงจอ เพื่อเอามากำหนดขอบเขต
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      //จำกัดความสูงไม่ให้เกิน 80% ของหน้าจอ (กันทะลุ)
+      // จำกัดความสูงไม่ให้เกิน 80% ของหน้าจอ
       constraints: BoxConstraints(maxHeight: screenHeight * 0.8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -53,7 +57,8 @@ class _FilterModalState extends State<FilterModal> {
                   TextButton(
                     onPressed: () {
                       setState(() {
-                        _tempRange = const RangeValues(0, 2000);
+                        // ปรับให้ค่า Reset ตรงกับค่าเริ่มต้นใน HomeScreen
+                        _tempRange = const RangeValues(0, 100000); 
                         _tempStatus = "All";
                       });
                     },
@@ -71,14 +76,15 @@ class _FilterModalState extends State<FilterModal> {
                 "Price Range",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 10),
               RangeSlider(
                 values: _tempRange,
                 min: 0,
                 max: 100000,
-                divisions: 20,
+                divisions: 100, // เพิ่มความละเอียดในการเลื่อน
                 labels: RangeLabels(
-                  "\$${_tempRange.start.round()}",
-                  "\$${_tempRange.end.round()}",
+                  "฿${_tempRange.start.round()}",
+                  "฿${_tempRange.end.round()}",
                 ),
                 activeColor: const Color.fromRGBO(96, 103, 237, 1),
                 onChanged: (RangeValues values) {
@@ -90,18 +96,18 @@ class _FilterModalState extends State<FilterModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("\$${_tempRange.start.round()}"),
-                  Text("\$${_tempRange.end.round()}"),
+                  Text("฿${_tempRange.start.round()}"),
+                  Text("฿${_tempRange.end.round()}"),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
               // --- 2. Status Chips ---
               const Text(
                 "Auction Status",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -111,10 +117,20 @@ class _FilterModalState extends State<FilterModal> {
                     label: Text(status),
                     selected: isSelected,
                     selectedColor: const Color.fromRGBO(96, 103, 237, 0.2),
+                    checkmarkColor: const Color.fromRGBO(96, 103, 237, 1),
                     labelStyle: TextStyle(
                       color: isSelected
                           ? const Color.fromRGBO(96, 103, 237, 1)
-                          : Colors.black,
+                          : Colors.black87,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color: isSelected 
+                            ? const Color.fromRGBO(96, 103, 237, 1) 
+                            : Colors.grey.shade300,
+                      ),
                     ),
                     onSelected: (bool selected) {
                       if (selected) {
@@ -127,15 +143,18 @@ class _FilterModalState extends State<FilterModal> {
                 }).toList(),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 40),
+              
+              // --- Apply Button ---
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromRGBO(96, 103, 237, 1),
                     padding: const EdgeInsets.symmetric(vertical: 15),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   onPressed: () {
@@ -144,11 +163,14 @@ class _FilterModalState extends State<FilterModal> {
                   },
                   child: const Text(
                     "Apply Filters",
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    style: TextStyle(
+                      color: Colors.white, 
+                      fontSize: 16, 
+                      fontWeight: FontWeight.bold
+                    ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),
