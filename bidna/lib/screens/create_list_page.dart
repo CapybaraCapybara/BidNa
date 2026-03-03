@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // [เพิ่ม] import FirebaseAuth สำหรับดึงข้อมูล User
 
 class CreateListingBase64 extends StatefulWidget {
   @override
@@ -23,7 +24,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   DateTime? _selectedDateTime;
   bool _isLoading = false;
 
-  final List<String> _categories = ['Electronics', 'Fashion', 'Home', 'Collectibles'];
+  final List<String> _categories = ['Electronics', 'Fashion', 'Home', 'Collectibles', 'Others'];
 
   Future<void> _pickImage() async {
     if (_selectedImages.length >= 5) return;
@@ -86,6 +87,12 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         base64Images.add(await _processImageToBase64(file));
       }
 
+      // [เพิ่ม] ดึงข้อมูล User ปัจจุบัน
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      
+      // ดึง displayName ถ้าไม่มีก็เอาส่วนหน้า @ ของอีเมล ถ้าไม่มีอีกก็ตั้งเป็น Anonymous
+      String sellerName = currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? "Anonymous";
+
       await FirebaseFirestore.instance.collection('Products').add({
         'category': _selectedCategory,
         'title': _titleController.text,
@@ -96,7 +103,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         'startTime': FieldValue.serverTimestamp(),
         'endTime': Timestamp.fromDate(_selectedDateTime!),
         'status': 'open',
-        'sellerId': 'user_123_test',
+        'sellerUid': currentUser?.uid,  // [เพิ่ม] เก็บ UID ของคนสร้างไว้ด้วยเพื่อใช้อ้างอิงทีหลัง
       });
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("สร้างรายการสำเร็จ!")));
@@ -118,7 +125,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Create Listing", style: TextStyle(color: Colors.black)), backgroundColor: Colors.white, elevation: 0),
+      appBar: AppBar(title: const Text("Create Listing", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white, elevation: 0),
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -163,7 +170,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _startAuction,
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6347EB), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      child: const Text("Start Auction", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text("Start Auction", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                     ),
                   ),
                 ],
