@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 class BidActionCard extends StatefulWidget {
   final double currentPrice;
   final int bidCount;
+  final double minBidIncrement; // [เพิ่ม] รับค่าบิดขั้นต่ำจาก Database
   final Function(double) onBidPlaced;
   final DateTime endTime;
 
@@ -12,6 +13,7 @@ class BidActionCard extends StatefulWidget {
     super.key,
     required this.currentPrice,
     this.bidCount = 0,
+    required this.minBidIncrement, // [เพิ่ม]
     required this.onBidPlaced,
     required this.endTime,
   });
@@ -29,7 +31,6 @@ class _BidActionCardState extends State<BidActionCard> {
   void initState() {
     super.initState();
     _checkTime();
-    // 2. ตั้ง Timer เช็คทุก 1 วิ เฉพาะการ์ดนี้! ไม่กระทบรูปภาพ!
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _checkTime();
     });
@@ -38,13 +39,12 @@ class _BidActionCardState extends State<BidActionCard> {
   void _checkTime() {
     bool ended = DateTime.now().isAfter(widget.endTime);
     if (ended != _isEnded) {
-      // ถ้าสถานะเปลี่ยนจากยังไม่หมด -> หมดเวลา
       if (mounted) {
         setState(() {
-          _isEnded = ended; // สั่งอัปเดตล็อคปุ่ม
+          _isEnded = ended;
         });
       }
-      if (ended) _timer?.cancel(); // ถ้าหมดเวลาแล้วก็หยุดเช็ค
+      if (ended) _timer?.cancel(); 
     }
   }
 
@@ -74,7 +74,7 @@ class _BidActionCardState extends State<BidActionCard> {
       ),
       child: Column(
         children: [
-          // 1. ส่วนแสดงราคาปัจจุบันและจำนวนครั้งที่ประมูล
+          // 1. ส่วนแสดงราคาปัจจุบันและจำนวนครั้งที่ประมูล (ดึงค่าจริงมาแสดง)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -90,19 +90,9 @@ class _BidActionCardState extends State<BidActionCard> {
           ),
           const SizedBox(height: 16),
 
-          // 2. ส่วนปุ่มลัดเพิ่มราคา (+50, +100, +150)
-          Row(
-            children: [
-              _buildQuickBidButton(50),
-              const SizedBox(width: 8),
-              _buildQuickBidButton(100),
-              const SizedBox(width: 8),
-              _buildQuickBidButton(150),
-            ],
-          ),
-          const SizedBox(height: 16),
+          // (นำส่วนปุ่มลัดเพิ่มราคาด่วนออกชั่วคราวตามที่ต้องการ)
 
-          // 3. ส่วนช่องกรอกราคาและปุ่ม Place Bid
+          // 2. ส่วนช่องกรอกราคาและปุ่ม Place Bid
           Row(
             children: [
               Expanded(
@@ -133,6 +123,7 @@ class _BidActionCardState extends State<BidActionCard> {
                         double bidAmount =
                             double.tryParse(_bidController.text) ?? 0;
                         widget.onBidPlaced(bidAmount);
+                        _bidController.clear(); // เคลียร์ช่องให้หลังจากกดประมูล
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromRGBO(96, 103, 237, 1),
@@ -154,9 +145,9 @@ class _BidActionCardState extends State<BidActionCard> {
           ),
           const SizedBox(height: 12),
 
-          // 4. แสดงราคาขั้นต่ำ
+          // 3. แสดงราคาขั้นต่ำ (คำนวณจากราคาปัจจุบัน + บิดขั้นต่ำ)
           Text(
-            'Minimum bid: ฿${NumberFormat('#,###').format(widget.currentPrice + 50)}',
+            'Minimum bid: ฿${NumberFormat('#,###').format(widget.currentPrice + widget.minBidIncrement)}',
             style: const TextStyle(color: Colors.grey, fontSize: 12),
           ),
         ],
@@ -179,34 +170,6 @@ class _BidActionCardState extends State<BidActionCard> {
           ),
         ),
       ],
-    );
-  }
-
-  // Widget ย่อยสำหรับปุ่มเพิ่มราคาด่วน
-  Widget _buildQuickBidButton(double extra) {
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: _isEnded
-            ? null
-            : () {
-                setState(() {
-                  _bidController.text = (widget.currentPrice + extra)
-                      .toStringAsFixed(0);
-                });
-              },
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.grey),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          backgroundColor: Colors.white,
-        ),
-        child: Text(
-          "+฿${extra.toInt()}",
-          style: const TextStyle(
-            color: Colors.black54,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
   }
 }

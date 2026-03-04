@@ -6,8 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // [เพิ่ม] import FirebaseAuth สำหรับดึงข้อมูล User
-import 'package:bidna/widgets/custom_app_bar.dart'; // [เพิ่ม] import CustomAppBar ที่เราสร้างไว้แล้ว
+import 'package:firebase_auth/firebase_auth.dart'; 
+import 'package:bidna/widgets/custom_app_bar.dart'; 
 
 class CreateListingBase64 extends StatefulWidget {
   @override
@@ -19,6 +19,8 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
+  // [เพิ่ม] Controller สำหรับราคาบิดขั้นต่ำ
+  final TextEditingController _minBidController = TextEditingController();
 
   List<File> _selectedImages = [];
   String? _selectedCategory;
@@ -88,10 +90,8 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         base64Images.add(await _processImageToBase64(file));
       }
 
-      // [เพิ่ม] ดึงข้อมูล User ปัจจุบัน
       User? currentUser = FirebaseAuth.instance.currentUser;
       
-      // ดึง displayName ถ้าไม่มีก็เอาส่วนหน้า @ ของอีเมล ถ้าไม่มีอีกก็ตั้งเป็น Anonymous
       String sellerName = currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? "Anonymous";
 
       await FirebaseFirestore.instance.collection('Products').add({
@@ -101,10 +101,12 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         'images': base64Images,
         'startPrice': double.parse(_priceController.text),
         'currentPrice': double.parse(_priceController.text),
+        // [เพิ่ม] บันทึกราคาบิดขั้นต่ำลงฐานข้อมูล
+        'minBidIncrement': double.parse(_minBidController.text),
         'startTime': FieldValue.serverTimestamp(),
         'endTime': Timestamp.fromDate(_selectedDateTime!),
         'status': 'open',
-        'sellerUid': currentUser?.uid,  // [เพิ่ม] เก็บ UID ของคนสร้างไว้ด้วยเพื่อใช้อ้างอิงทีหลัง
+        'sellerUid': currentUser?.uid,  
       });
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("สร้างรายการสำเร็จ!")));
@@ -120,6 +122,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
     _titleController.clear();
     _descController.clear();
     _priceController.clear();
+    _minBidController.clear(); // [เพิ่ม] เคลียร์ค่าเมื่อส่งฟอร์มเสร็จ
     setState(() { _selectedImages = []; _selectedCategory = null; _selectedDateTime = null; });
   }
 
@@ -145,8 +148,31 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
                   _buildTextField(_descController, "Details...", maxLines: 3),
                   _buildInputLabel("Category"),
                   _buildDropdown(_categories, "Select Category", (v) => setState(() => _selectedCategory = v), _selectedCategory),
-                  _buildInputLabel("Starting Price (฿)"),
-                  _buildTextField(_priceController, "0.00", isNumber: true),
+                  
+                  // จัด Layout ราคาเริ่มต้น กับ บิดขั้นต่ำ ให้สวยงาม
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel("Starting Price (฿)"),
+                            _buildTextField(_priceController, "0.00", isNumber: true),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildInputLabel("Min Bid (฿)"), // [เพิ่ม] ช่องกรอกราคาบิดขั้นต่ำ
+                            _buildTextField(_minBidController, "e.g. 50", isNumber: true),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   
                   _buildInputLabel("Auction End Date & Time"),
                   GestureDetector(
