@@ -19,6 +19,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
 
   String? _base64Image;
   bool _isLoading = true; // โหลดข้อมูลตอนเข้าหน้าแรก
@@ -47,6 +48,7 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           _nameController.text = data['displayName'] ?? '';
           _phoneController.text = data['phoneNumber'] ?? '';
+          _bioController.text = data['bio'] ?? '';
           _base64Image = data['profileImage']; // รูป Base64
         });
       }
@@ -97,10 +99,13 @@ class _ProfilePageState extends State<ProfilePage> {
       await FirebaseFirestore.instance.collection('Users').doc(currentUser!.uid).set({
         'displayName': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
+        'bio': _bioController.text.trim(),
         'profileImage': _base64Image,
-        'email': currentUser!.email, // เก็บอีเมลไว้ด้วยเผื่อใช้
+        'email': currentUser!.email,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)); // ใช้ merge เผื่อมีข้อมูลอื่นอยู่แล้วจะได้ไม่ทับหายไปหมด
+        // fields สำหรับ rating (ตั้งค่าเริ่มต้นถ้ายังไม่มี จะไม่ทับค่าเดิมเพราะใช้ merge)
+        // rating และ ratingCount จะถูกอัปเดตโดย review function แยกต่างหาก
+      }, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,6 +149,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _bioController.dispose();
     super.dispose();
   }
 
@@ -222,6 +228,35 @@ class _ProfilePageState extends State<ProfilePage> {
                       icon: Icons.phone_outlined,
                       isPhone: true,
                       validator: (value) => value!.isEmpty ? "กรุณากรอกเบอร์โทรศัพท์" : null,
+                    ),
+                    const SizedBox(height: 16),
+                    // ── ช่อง Bio ──
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("About Me", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _bioController,
+                          maxLines: 3,
+                          maxLength: 150,
+                          decoration: InputDecoration(
+                            hintText: "Tell others a little about yourself...",
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            prefixIcon: const Padding(
+                              padding: EdgeInsets.only(bottom: 40),
+                              child: Icon(Icons.info_outline, color: Colors.grey),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF8F9FD),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            counterStyle: const TextStyle(color: Colors.grey, fontSize: 11),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 40),
 

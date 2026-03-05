@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/notification_screen.dart';
 import 'package:bidna/screens/profile_page.dart';
 import 'package:bidna/screens/chat_list_page.dart';
+import 'package:bidna/screens/user_profile_view_page.dart';
+
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -98,11 +100,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfilePage()),
-                  );
-                },
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid != null) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileViewPage(targetUserId: uid),
+      ),
+    );
+  }
+},
                 child: CircleAvatar(
                   radius: 18,
                   backgroundColor: Colors.grey.shade200,

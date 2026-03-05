@@ -5,6 +5,7 @@ import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/chat_screens.dart'; // แก้เป็น chat_screen.dart ให้ตรงกับไฟล์ที่สร้าง
+import 'package:bidna/screens/user_profile_view_page.dart';
 import 'package:intl/intl.dart'; // สำหรับจัด Format ตัวเลขและวันที่
 
 class ProductDetailsPage extends StatefulWidget {
@@ -253,7 +254,18 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             profileImageBase64 = userData['profileImage'];
                           }
 
-                          return Container(
+                          return GestureDetector(
+                            onTap: () {
+                              if (sellerUid.isNotEmpty) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => UserProfileViewPage(targetUserId: sellerUid),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
@@ -355,7 +367,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 ),
                               ],
                             ),
-                          );
+                          ), // close Container
+                        ); // close GestureDetector
                         }
                       ),
 
@@ -431,7 +444,18 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                         profileImageBase64 = userData['profileImage'];
                                       }
 
-                                      return Container(
+                                      return GestureDetector(
+                                        onTap: () {
+                                          if (bidderUid.isNotEmpty) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => UserProfileViewPage(targetUserId: bidderUid),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Container(
                                         margin: const EdgeInsets.only(bottom: 12),
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
@@ -500,7 +524,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                             ),
                                           ],
                                         ),
-                                      );
+                                      ), // close Container
+                                      ); // close GestureDetector
                                     },
                                   );
                                 },
