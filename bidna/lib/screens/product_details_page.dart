@@ -4,9 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/screens/chat_screens.dart'; // แก้เป็น chat_screen.dart ให้ตรงกับไฟล์ที่สร้าง
+import 'package:bidna/screens/chat_screens.dart';
 import 'package:bidna/screens/user_profile_view_page.dart';
-import 'package:intl/intl.dart'; // สำหรับจัด Format ตัวเลขและวันที่
+import 'package:bidna/screens/write_review_page.dart';
+import 'package:bidna/services/review_service.dart';
+import 'package:intl/intl.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String productId;
@@ -17,6 +19,8 @@ class ProductDetailsPage extends StatefulWidget {
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
+  final ReviewService _reviewService = ReviewService();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -254,18 +258,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                             profileImageBase64 = userData['profileImage'];
                           }
 
-                          return GestureDetector(
-                            onTap: () {
-                              if (sellerUid.isNotEmpty) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => UserProfileViewPage(targetUserId: sellerUid),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Container(
+                          return Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
@@ -286,39 +279,48 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 20,
-                                          backgroundColor: Colors.grey[300],
-                                          backgroundImage: (profileImageBase64 != null && profileImageBase64.isNotEmpty)
-                                              ? MemoryImage(base64Decode(profileImageBase64))
-                                              : null,
-                                          child: (profileImageBase64 == null || profileImageBase64.isEmpty)
-                                              ? const Icon(Icons.person, color: Colors.white)
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              displaySellerName,
-                                              style: const TextStyle(fontWeight: FontWeight.bold),
-                                            ),
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.star, color: Colors.amber, size: 16),
-                                                Text(
-                                                  '${data['sellerRating'] ?? "N/A"} • ${data['sellerSales'] ?? "0"} sales',
-                                                  style: const TextStyle(color: Colors.grey),
-                                                ),
-                                                const SizedBox(width: 4),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ],
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (sellerUid.isNotEmpty) {
+                                          Navigator.push(context, MaterialPageRoute(
+                                            builder: (_) => UserProfileViewPage(targetUserId: sellerUid),
+                                          ));
+                                        }
+                                      },
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: Colors.grey[300],
+                                            backgroundImage: (profileImageBase64 != null && profileImageBase64.isNotEmpty)
+                                                ? MemoryImage(base64Decode(profileImageBase64))
+                                                : null,
+                                            child: (profileImageBase64 == null || profileImageBase64.isEmpty)
+                                                ? const Icon(Icons.person, color: Colors.white)
+                                                : null,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                displaySellerName,
+                                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                              ),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.star, color: Colors.amber, size: 16),
+                                                  Text(
+                                                    '${data['sellerRating'] ?? "N/A"} • ${data['sellerSales'] ?? "0"} sales',
+                                                    style: const TextStyle(color: Colors.grey),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                     
                                     // 🟢 ปุ่ม Chat ที่อัปเดตแล้ว
@@ -367,8 +369,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 ),
                               ],
                             ),
-                          ), // close Container
-                        ); // close GestureDetector
+                          );
                         }
                       ),
 
@@ -447,12 +448,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                       return GestureDetector(
                                         onTap: () {
                                           if (bidderUid.isNotEmpty) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => UserProfileViewPage(targetUserId: bidderUid),
-                                              ),
-                                            );
+                                            Navigator.push(context, MaterialPageRoute(
+                                              builder: (_) => UserProfileViewPage(targetUserId: bidderUid),
+                                            ));
                                           }
                                         },
                                         child: Container(
@@ -534,6 +532,77 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ),
                         ],
                       ),
+
+                      // ── ปุ่ม Write Review (แสดงเฉพาะผู้ชนะประมูลหลังประมูลจบ) ──
+                      Builder(builder: (_) {
+                        final bool isAuctionEnded = DateTime.now().isAfter(endTime);
+                        final String? highestBidderUid = data['highestBidderUid'];
+                        final bool isWinner = isAuctionEnded &&
+                            myUid != null &&
+                            highestBidderUid == myUid &&
+                            myUid != sellerUid;
+                        final bool isAlreadyReviewed = data['isReviewed'] == true && data['reviewedBy'] == myUid;
+
+                        if (!isWinner) return const SizedBox.shrink();
+
+                        // ส่ง notification เตือนให้ review (ครั้งเดียว ไม่ซ้ำ)
+                        if (!isAlreadyReviewed) {
+                          _reviewService.notifyWinnerToReview(
+                            winnerId:     myUid!,
+                            productId:    widget.productId,
+                            productTitle: data['title'] ?? '',
+                          );
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: isAlreadyReviewed
+                              ? Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.green.shade200),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.check_circle, color: Colors.green),
+                                      SizedBox(width: 8),
+                                      Text('คุณได้ review สินค้านี้แล้ว',
+                                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                )
+                              : SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => WriteReviewPage(
+                                            productId: widget.productId,
+                                            productTitle: data['title'] ?? '',
+                                            sellerId: sellerUid,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.rate_review_outlined, color: Colors.white),
+                                    label: const Text('Write a Review',
+                                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF6347EB),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                ),
+                        );
+                      }),
                     ],
                   ),
                 ),
