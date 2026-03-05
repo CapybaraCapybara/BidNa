@@ -7,6 +7,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 
+// 🔴 Import Service & Model
+import 'package:bidna/services/chat_service.dart';
+import 'package:bidna/models/chat_model.dart';
+
 class ChatScreen extends StatefulWidget {
   final String peerId;
   final String peerName;
@@ -28,14 +32,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final String myUid = FirebaseAuth.instance.currentUser!.uid;
   late String roomId;
   bool _isSendingImage = false;
+  
+  // 🔴 เรียกใช้ ChatService
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
     super.initState();
-    // สร้าง Room ID ให้เหมือนกันเสมอไม่ว่าใครทักก่อน
-    List<String> ids = [myUid, widget.peerId];
-    ids.sort();
-    roomId = ids.join("_");
+    roomId = _chatService.getRoomId(myUid, widget.peerId);
   }
 
   Future<void> _pickAndSendImage() async {
@@ -63,51 +67,21 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _sendMessage(String? text, String? imageBase64) async {
     if ((text == null || text.trim().isEmpty) && imageBase64 == null) return;
 
-    final msgData = {
-      'senderId': myUid,
-      'receiverId': widget.peerId,
-      'text': text?.trim(),
-      'image': imageBase64,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
-
-    // 1. บันทึกข้อความลง Subcollection
-    await FirebaseFirestore.instance
-        .collection('ChatRooms')
-        .doc(roomId)
-        .collection('messages')
-        .add(msgData);
-
-    // 2. อัปเดตข้อมูลห้องสนทนาล่าสุด
-    await FirebaseFirestore.instance.collection('ChatRooms').doc(roomId).set({
-      'users': [myUid, widget.peerId], // 🔴 สำคัญมาก ต้องมีบรรทัดนี้ Chat List ถึงจะเห็น
-      'lastMessage': imageBase64 != null ? "📷 Sent an image" : text,
-      'lastTimestamp': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    // -----------------------------------------------------------------
-    // 🌟 3. ส่ง Notification เข้าไปที่ in-app แจ้งเตือนของผู้รับ
-    // -----------------------------------------------------------------
-    // ดึงชื่อของเราเองก่อน เพื่อเอาไปบอกผู้รับว่าใครทักมา
     DocumentSnapshot myDoc = await FirebaseFirestore.instance.collection('Users').doc(myUid).get();
     String myName = "Someone";
     if (myDoc.exists) {
       myName = (myDoc.data() as Map<String, dynamic>)['displayName'] ?? "Someone";
     }
 
-    await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(widget.peerId) // เล็งไปที่เป้าหมาย (คนรับ)
-        .collection('notifications')
-        .add({
-      'title': 'New Message',
-      'message': '$myName sent you a message.',
-      'isRead': false,
-      'type': 'CHAT', // สร้าง Type ใหม่เป็น CHAT
-      'peerId': myUid, // เก็บ ID ของเราไว้ เผื่อคนรับกดจากแจ้งเตือนจะได้เปิดแชทถูกคน
-      'peerName': myName,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // 🔴 เรียกใช้ Service จัดการการส่งข้อความและแจ้งเตือน
+    await _chatService.sendMessage(
+      roomId: roomId,
+      senderId: myUid,
+      receiverId: widget.peerId,
+      senderName: myName,
+      text: text,
+      imageBase64: imageBase64,
+    );
 
     _msgController.clear();
   }
@@ -167,22 +141,23 @@ class _ChatScreenState extends State<ChatScreen> {
         if (snapshot.data!.docs.isEmpty) return const Center(child: Text("Say Hi! 👋", style: TextStyle(color: Colors.grey)));
 
         return ListView.builder(
-          reverse: true, // ให้ข้อความใหม่สุดอยู่ล่างสุด
+          reverse: true,
           padding: const EdgeInsets.all(16),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
-            var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-            bool isMe = data['senderId'] == myUid;
-            return _buildMessageBubble(data, isMe);
+            // 🔴 แปลงเป็น MessageModel
+            MessageModel message = MessageModel.fromDoc(snapshot.data!.docs[index]);
+            bool isMe = message.senderId == myUid;
+            return _buildMessageBubble(message, isMe);
           },
         );
       },
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> data, bool isMe) {
-    Timestamp? ts = data['timestamp'] as Timestamp?;
-    String timeStr = ts != null ? DateFormat('HH:mm').format(ts.toDate()) : "";
+  // 🔴 เปลี่ยน Parameter เป็น MessageModel
+  Widget _buildMessageBubble(MessageModel message, bool isMe) {
+    String timeStr = message.timestamp != null ? DateFormat('HH:mm').format(message.timestamp!) : "";
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -203,17 +178,17 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            if (data['image'] != null && data['image'].toString().isNotEmpty)
+            if (message.image != null && message.image!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.memory(base64Decode(data['image']), fit: BoxFit.cover),
+                  child: Image.memory(base64Decode(message.image!), fit: BoxFit.cover),
                 ),
               ),
-            if (data['text'] != null && data['text'].toString().isNotEmpty)
+            if (message.text != null && message.text!.isNotEmpty)
               Text(
-                data['text'],
+                message.text!,
                 style: TextStyle(color: isMe ? Colors.white : Colors.black87, fontSize: 15),
               ),
             const SizedBox(height: 4),

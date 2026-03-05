@@ -2,16 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// 🔴 Import Model
+import 'package:bidna/models/product_model.dart';
 
 class ProductCard extends StatefulWidget {
-  final Map<String, dynamic> data;
-  final String productId;
+  final ProductModel product; // 🔴 รับค่าเป็น ProductModel
   final VoidCallback? onTap;
 
   const ProductCard({
     super.key,
-    required this.data,
-    required this.productId,
+    required this.product,
     this.onTap,
   });
 
@@ -26,14 +26,9 @@ class _ProductCardState extends State<ProductCard> {
   @override
   void initState() {
     super.initState();
-    // ดึงเวลาสิ้นสุดจากข้อมูล
-    if (widget.data['endTime'] != null) {
-      _endTime = (widget.data['endTime'] as Timestamp).toDate();
-    } else {
-      _endTime = DateTime.now();
-    }
+    // 🔴 เข้าถึงค่าผ่าน Model 
+    _endTime = widget.product.endTime;
 
-    // อัปเดต UI ทุกวินาที
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
         if (DateTime.now().isAfter(_endTime)) {
@@ -52,17 +47,14 @@ class _ProductCardState extends State<ProductCard> {
 
   @override
   Widget build(BuildContext context) {
-    List images = widget.data['images'] ?? [];
-    String? base64Image = images.isNotEmpty ? images[0] : null;
-
-    double price = (widget.data['currentPrice'] ?? 0).toDouble();
-    String title = widget.data['title'] ?? "No Name";
+    // 🔴 เข้าถึงค่าผ่าน Model
+    String? base64Image = widget.product.images.isNotEmpty ? widget.product.images[0] : null;
+    double price = widget.product.currentPrice;
+    String title = widget.product.title;
 
     Duration remaining = _endTime.difference(DateTime.now());
     bool isEnded = remaining.isNegative;
     bool isUrgent = remaining.inMinutes < 10 && !isEnded;
-
-    // ค้นหาและแทนที่ส่วนการคำนวณ timeText ใน build method ของ product_card.dart
 
     String timeText;
     Color badgeColor;
@@ -71,20 +63,16 @@ class _ProductCardState extends State<ProductCard> {
       timeText = "Ended";
       badgeColor = Colors.grey.shade600;
     } else {
-      // คำนวณส่วนต่างแบบแยกหน่วย
       int days = remaining.inDays;
       int hours = remaining.inHours % 24;
       int minutes = remaining.inMinutes % 60;
       int seconds = remaining.inSeconds % 60;
 
       if (days >= 1) {
-        // กรณีเกิน 24 ชม.: แสดง วัน และ ชั่วโมง
         timeText = "${days}d ${hours}h left";
       } else if (remaining.inHours >= 1) {
-        // กรณีไม่ถึงวันแต่เกิน 1 ชม.: แสดง ชั่วโมง และ นาที
         timeText = "${hours}h ${minutes}m left";
       } else {
-        // กรณีไม่ถึง 1 ชม.: แสดง นาที และ วินาที
         timeText = "${minutes}m ${seconds}s left";
       }
 
@@ -120,7 +108,6 @@ class _ProductCardState extends State<ProductCard> {
                             child: const Icon(Icons.image_not_supported, color: Colors.grey),
                           ),
                   ),
-                  // ป้ายเวลาคงเหลือ
                   Positioned(
                     bottom: 8,
                     left: 8,
@@ -171,19 +158,14 @@ class _ProductCardState extends State<ProductCard> {
                         ),
                       ],
                     ),
-                    // ส่วนแสดงจำนวน Bids จริงจาก Firestore
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('Products')
-                          .doc(widget.productId)
+                          .doc(widget.product.id) // 🔴 ใช้ id จาก Model
                           .collection('bids')
                           .snapshots(),
                       builder: (context, snapshot) {
-                        int bidCount = 0;
-                        if (snapshot.hasData) {
-                          bidCount = snapshot.data!.docs.length;
-                        }
-
+                        int bidCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
                         return Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [

@@ -6,7 +6,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'package:bidna/screens/login_screen.dart'; // แก้ path ให้ตรงกับโปรเจกต์คุณ
+import 'package:bidna/screens/login_screen.dart';
+
+// 🔴 Import Service
+import 'package:bidna/services/user_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -22,10 +25,13 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _bioController = TextEditingController();
 
   String? _base64Image;
-  bool _isLoading = true; // โหลดข้อมูลตอนเข้าหน้าแรก
-  bool _isSaving = false; // โหลดตอนกดบันทึก
+  bool _isLoading = true; 
+  bool _isSaving = false; 
 
   final User? currentUser = FirebaseAuth.instance.currentUser;
+  
+  // 🔴 เรียกใช้ UserService
+  final UserService _userService = UserService();
 
   @override
   void initState() {
@@ -33,7 +39,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadUserData();
   }
 
-  // ดึงข้อมูลผู้ใช้จาก Firestore มาแสดง
   Future<void> _loadUserData() async {
     if (currentUser == null) return;
 
@@ -49,7 +54,7 @@ class _ProfilePageState extends State<ProfilePage> {
           _nameController.text = data['displayName'] ?? '';
           _phoneController.text = data['phoneNumber'] ?? '';
           _bioController.text = data['bio'] ?? '';
-          _base64Image = data['profileImage']; // รูป Base64
+          _base64Image = data['profileImage']; 
         });
       }
     } catch (e) {
@@ -61,7 +66,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // เลือกรูปจาก Gallery และแปลงเป็น Base64
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
@@ -73,19 +77,16 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ย่อรูปและแปลงเป็น Base64 (แบบเดียวกับ Create Listing)
   Future<String> _processImageToBase64(File file) async {
     Uint8List bytes = await file.readAsBytes();
     img.Image? decoded = img.decodeImage(bytes);
     if (decoded == null) return "";
     
-    // ย่อให้เล็กลงหน่อยสำหรับรูปโปรไฟล์ (ลดขนาดไฟล์เพื่อเซฟพื้นที่ Firestore)
     img.Image resized = img.copyResize(decoded, width: 300); 
     List<int> compressed = img.encodeJpg(resized, quality: 70);
     return base64Encode(compressed);
   }
 
-  // บันทึกข้อมูลลง Firestore
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (currentUser == null) return;
@@ -95,17 +96,15 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      // บันทึกลง Collection 'Users' โดยใช้ UID เป็นชื่อ Document
-      await FirebaseFirestore.instance.collection('Users').doc(currentUser!.uid).set({
-        'displayName': _nameController.text.trim(),
-        'phoneNumber': _phoneController.text.trim(),
-        'bio': _bioController.text.trim(),
-        'profileImage': _base64Image,
-        'email': currentUser!.email,
-        'updatedAt': FieldValue.serverTimestamp(),
-        // fields สำหรับ rating (ตั้งค่าเริ่มต้นถ้ายังไม่มี จะไม่ทับค่าเดิมเพราะใช้ merge)
-        // rating และ ratingCount จะถูกอัปเดตโดย review function แยกต่างหาก
-      }, SetOptions(merge: true));
+      // 🔴 ใช้ UserService แทน
+      await _userService.updateProfile(
+        uid: currentUser!.uid,
+        email: currentUser!.email ?? '',
+        displayName: _nameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        bio: _bioController.text.trim(),
+        base64Image: _base64Image,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,14 +132,13 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ออกจากระบบ
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false, // เคลียร์ประวัติหน้าเก่าทิ้งให้หมด
+        (route) => false, 
       );
     }
   }
@@ -178,7 +176,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // --- ส่วนรูปโปรไฟล์ ---
                     GestureDetector(
                       onTap: _pickImage,
                       child: Stack(
@@ -212,7 +209,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 30),
 
-                    // --- ส่วนกรอกข้อมูล ---
                     _buildTextField(
                       controller: _nameController,
                       label: "Username",
@@ -230,7 +226,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       validator: (value) => value!.isEmpty ? "กรุณากรอกเบอร์โทรศัพท์" : null,
                     ),
                     const SizedBox(height: 16),
-                    // ── ช่อง Bio ──
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -260,7 +255,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 40),
 
-                    // --- ปุ่มบันทึก ---
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -292,7 +286,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Widget ตัวช่วยสร้าง TextField ให้โค้ดคลีนๆ
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -315,7 +308,7 @@ class _ProfilePageState extends State<ProfilePage> {
             hintStyle: const TextStyle(color: Colors.grey),
             prefixIcon: Icon(icon, color: Colors.grey),
             filled: true,
-            fillColor: const Color(0xFFF8F9FD), // สีพื้นหลังแบบกลืนๆ ตามธีม Login
+            fillColor: const Color(0xFFF8F9FD), 
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

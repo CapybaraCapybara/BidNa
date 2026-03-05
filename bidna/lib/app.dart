@@ -1,35 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:bidna/screens/HomeScreen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/login_screen.dart';
+import 'package:bidna/screens/main_navigation.dart';
 
-class App extends StatefulWidget {
+class App extends StatelessWidget {
   const App({super.key});
 
   @override
-  State<App> createState() => _AppState();
-}
-
-class _AppState extends State<App> {
-  bool _isLoggedIn = false;
-  int _selectedIndex = 0;
-
-  // 2. รายชื่อหน้าต่างๆ (เรียงตามไอคอนข้างล่าง)
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const Center(child: Text("หน้า Sell")),
-    const Center(child: Text("หน้า Watchlist")),
-    const Center(child: Text("หน้า Profile")),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // ต้องมี MaterialApp ครอบเป็นตัวแม่สุดเสมอ
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Bidna',
@@ -37,34 +15,23 @@ class _AppState extends State<App> {
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: const Color.fromRGBO(238, 237, 237, 1),
       ),
-
-      home: _isLoggedIn
-          ? Scaffold(
-              body: _pages[_selectedIndex],
-              bottomNavigationBar: BottomNavigationBar(
-                currentIndex: _selectedIndex,
-                onTap: _onItemTapped,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home),
-                    label: 'Home',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.shopping_cart),
-                    label: 'Sell',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.favorite),
-                    label: 'Watchlist',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.person),
-                    label: 'Profile',
-                  ),
-                ],
-              ),
-            )
-          : const LoginScreen(),
+      // ดักจับสถานะ Login สดๆ จาก Firebase
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          // ถ้ามีข้อมูล User (ล็อกอินแล้ว) ให้ไปหน้า MainNavigation
+          if (snapshot.hasData) {
+            return const MainNavigation();
+          }
+          // ถ้ายังไม่ล็อกอิน ให้ไปหน้า Login
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

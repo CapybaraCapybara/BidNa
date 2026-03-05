@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/screens/chat_screens.dart';
 import 'package:intl/intl.dart';
 
+// 🔴 Import Model
+import 'package:bidna/models/chat_model.dart';
+
 class ChatListPage extends StatelessWidget {
   const ChatListPage({super.key});
 
@@ -21,7 +24,6 @@ class ChatListPage extends StatelessWidget {
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        // 1. ดึงแค่ข้อมูลที่มีเราอยู่ (ประหยัดค่า Read) ตัด .orderBy ออกไปเลย!
         stream: FirebaseFirestore.instance
             .collection('ChatRooms')
             .where('users', arrayContains: currentUser.uid)
@@ -39,34 +41,29 @@ class ChatListPage extends StatelessWidget {
             return const Center(child: Text("No messages yet."));
           }
 
-          // 2. เอาข้อมูลมาจัดเรียง (Sort) ด้วยโค้ด Dart แทน (เหมือน Order By DESC)
-          var rooms = snapshot.data!.docs.toList();
+          // 🔴 แปลง Document เป็น ChatRoomModel
+          var rooms = snapshot.data!.docs.map((doc) => ChatRoomModel.fromDoc(doc)).toList();
+          
+          // 🔴 เรียงลำดับโดยใช้ Property ของ Model
           rooms.sort((a, b) {
-            var aData = a.data() as Map<String, dynamic>;
-            var bData = b.data() as Map<String, dynamic>;
-            Timestamp? aTime = aData['lastTimestamp'] as Timestamp?;
-            Timestamp? bTime = bData['lastTimestamp'] as Timestamp?;
-            
-            if (aTime == null && bTime == null) return 0;
-            if (aTime == null) return 1;
-            if (bTime == null) return -1;
-            // เรียงจากเวลาล่าสุดไปเก่าสุด
-            return bTime.compareTo(aTime);
+            if (a.lastTimestamp == null && b.lastTimestamp == null) return 0;
+            if (a.lastTimestamp == null) return 1;
+            if (b.lastTimestamp == null) return -1;
+            return b.lastTimestamp!.compareTo(a.lastTimestamp!);
           });
 
           return ListView.builder(
             itemCount: rooms.length,
             itemBuilder: (context, index) {
-              var roomData = rooms[index].data() as Map<String, dynamic>;
-              List users = roomData['users'] ?? [];
-              String peerId = users.firstWhere((id) => id != currentUser.uid, orElse: () => "");
+              var room = rooms[index];
+              // 🔴 หา peerId จาก Model
+              String peerId = room.users.firstWhere((id) => id != currentUser.uid, orElse: () => "");
               
               if (peerId.isEmpty) return const SizedBox.shrink();
 
-              String timeAgo = "";
-              if (roomData['lastTimestamp'] != null) {
-                timeAgo = DateFormat('HH:mm').format((roomData['lastTimestamp'] as Timestamp).toDate());
-              }
+              String timeAgo = room.lastTimestamp != null 
+                  ? DateFormat('HH:mm').format(room.lastTimestamp!) 
+                  : "";
 
               return FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance.collection('Users').doc(peerId).get(),
@@ -87,7 +84,7 @@ class ChatListPage extends StatelessWidget {
                       child: (peerImage == null || peerImage.isEmpty) ? const Icon(Icons.person, color: Colors.grey) : null,
                     ),
                     title: Text(peerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(roomData['lastMessage'] ?? "", maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(room.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
                     trailing: Text(timeAgo, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                     onTap: () {
                       Navigator.push(

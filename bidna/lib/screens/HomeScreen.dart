@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:bidna/screens/notification_screen.dart';
 import 'package:bidna/widgets/custom_app_bar.dart';
 
+// 🔴 Import Model & Service
+import 'package:bidna/models/product_model.dart';
+import 'package:bidna/services/product_service.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,28 +21,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // State สำหรับ Filter
   RangeValues _currentPriceRange = const RangeValues(0, 100000); 
   String _selectedStatus = "All";
   String _searchQuery = "";
   String selectedCategory = "All";
 
+  // 🔴 เรียกใช้งาน Service
+  final ProductService _productService = ProductService();
+
   final List<String> categories = [
-    "All",
-    "Electronics",
-    "Fashion",
-    "Home",
-    "Collectibles",
-    "Others",
+    "All", "Electronics", "Fashion", "Home", "Collectibles", "Others",
   ];
 
   void _openFilter() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (context) {
         return FilterModal(
           currentRange: _currentPriceRange,
@@ -61,25 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Column(
         children: [
           const SizedBox(height: 20),
-          // --- Search Bar ---
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(width: 10),
               Expanded(
                 child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
+                  onChanged: (value) => setState(() => _searchQuery = value),
                   decoration: InputDecoration(
                     hintText: 'Search Auctions...',
                     prefixIcon: const Icon(Icons.search, color: Colors.black54),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                     filled: true,
                     fillColor: const Color.fromRGBO(241, 244, 248, 1),
                   ),
@@ -91,9 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.filter_list, color: Colors.black54),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 padding: const EdgeInsets.all(12),
               ),
@@ -102,7 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 10),
 
-          // --- Category Selector ---
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -111,9 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: TextButton(
-                    onPressed: () {
-                      setState(() => selectedCategory = category);
-                    },
+                    onPressed: () => setState(() => selectedCategory = category),
                     style: TextButton.styleFrom(
                       backgroundColor: isSelected ? const Color(0xFF6347EB) : Colors.white,
                       foregroundColor: isSelected ? Colors.white : Colors.black,
@@ -131,51 +117,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('Products')
-                  .orderBy('startTime', descending: true)
-                  .snapshots(),
+              stream: _productService.getLiveAuctions(), // 🔴 ดึง Stream จาก Service
               builder: (context, snapshot) {
                 if (snapshot.hasError) return const Center(child: Text("Something went wrong"));
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs;
+                // 🔴 แปลง Document ให้เป็น ProductModel List
+                final products = snapshot.data!.docs.map((doc) => ProductModel.fromDoc(doc)).toList();
 
-                // --- LOGIC การกรองและการตรวจสอบสถานะสินค้า ---
-                final filteredDocs = docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final String docId = doc.id;
-                  
-                  // 1. ตรวจสอบการหมดเวลา (Auto-Close)
-                  final DateTime endTime = (data['endTime'] as Timestamp).toDate();
-                  String currentStatus = (data['status'] ?? 'open').toString().toLowerCase();
+                final filteredProducts = products.where((product) {
+                  String currentStatus = product.status.toLowerCase();
 
-                  if (DateTime.now().isAfter(endTime) && currentStatus == 'open') {
-                    // อัปเดต DB เมื่อหมดเวลาแต่สถานะยังเป็น open
-                    FirebaseFirestore.instance
-                        .collection('Products')
-                        .doc(docId)
-                        .update({'status': 'closed'});
-                    currentStatus = 'closed'; // ปรับค่าใน memory เพื่อใช้กรองต่อทันที
+                  // ตรวจสอบ Auto-Close
+                  if (DateTime.now().isAfter(product.endTime) && currentStatus == 'open') {
+                    _productService.closeAuction(product.id); // 🔴 สั่งปิดผ่าน Service
+                    currentStatus = 'closed';
                   }
 
-                  // 2. กรอง Category
-                  final itemCategory = data['category'] ?? "Others";
-                  final categoryMatch = selectedCategory == "All" || itemCategory == selectedCategory;
-
-                  // 3. กรองราคา
-                  final price = (data['currentPrice'] ?? 0).toDouble();
-                  final priceMatch = price >= _currentPriceRange.start && price <= _currentPriceRange.end;
-
-                  // 4. กรองชื่อ (Search)
-                  final title = (data['title'] ?? "").toString().toLowerCase();
-                  final searchMatch = title.contains(_searchQuery.toLowerCase());
-
-                  // 5. กรองสถานะ (Status) - ตรวจสอบค่า 'All', 'Open', 'Closed'
-                  final selectedStatusLower = _selectedStatus.toLowerCase();
-                  final statusMatch = _selectedStatus == "All" || currentStatus == selectedStatusLower;
+                  final categoryMatch = selectedCategory == "All" || product.category == selectedCategory;
+                  final priceMatch = product.currentPrice >= _currentPriceRange.start && product.currentPrice <= _currentPriceRange.end;
+                  final searchMatch = product.title.toLowerCase().contains(_searchQuery.toLowerCase());
+                  final statusMatch = _selectedStatus == "All" || currentStatus == _selectedStatus.toLowerCase();
 
                   return categoryMatch && priceMatch && searchMatch && statusMatch;
                 }).toList();
@@ -187,21 +151,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            "Live Auctions",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                          ),
-                          Text("${filteredDocs.length} items"),
+                          const Text("Live Auctions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                          Text("${filteredProducts.length} items"),
                         ],
                       ),
                     ),
-
                     Expanded(
-                      child: filteredDocs.isEmpty
+                      child: filteredProducts.isEmpty
                           ? const Center(child: Text("No products found"))
                           : GridView.builder(
                               padding: const EdgeInsets.all(10),
-                              itemCount: filteredDocs.length,
+                              itemCount: filteredProducts.length,
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
                                 childAspectRatio: 0.75,
@@ -209,16 +169,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 mainAxisSpacing: 10,
                               ),
                               itemBuilder: (context, index) {
-                                final doc = filteredDocs[index];
-                                final data = doc.data() as Map<String, dynamic>;
+                                final product = filteredProducts[index];
                                 return ProductCard(
-                                  data: data,
-                                  productId: doc.id,
+                                  product: product, // 🔴 โยน ProductModel เข้า ProductCard
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => ProductDetailsPage(productId: doc.id),
+                                        builder: (_) => ProductDetailsPage(productId: product.id),
                                       ),
                                     );
                                   },

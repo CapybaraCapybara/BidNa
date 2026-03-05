@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
-import 'package:bidna/widgets/custom_app_bar.dart'; 
+import 'package:bidna/widgets/custom_app_bar.dart';
+// 🔴 Import Service
+import 'package:bidna/services/product_service.dart';
 
 class CreateListingBase64 extends StatefulWidget {
   @override
@@ -19,7 +21,6 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
-  // [เพิ่ม] Controller สำหรับราคาบิดขั้นต่ำ
   final TextEditingController _minBidController = TextEditingController();
 
   List<File> _selectedImages = [];
@@ -28,6 +29,9 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   bool _isLoading = false;
 
   final List<String> _categories = ['Electronics', 'Fashion', 'Home', 'Collectibles', 'Others'];
+  
+  // 🔴 เรียกใช้ Service
+  final ProductService _productService = ProductService();
 
   Future<void> _pickImage() async {
     if (_selectedImages.length >= 5) return;
@@ -92,16 +96,14 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
 
       User? currentUser = FirebaseAuth.instance.currentUser;
       
-      String sellerName = currentUser?.displayName ?? currentUser?.email?.split('@')[0] ?? "Anonymous";
-
-      await FirebaseFirestore.instance.collection('Products').add({
+      // 🔴 ส่งข้อมูลให้ ProductService จัดการสร้างรายการ
+      await _productService.createListing({
         'category': _selectedCategory,
         'title': _titleController.text,
         'description': _descController.text,
         'images': base64Images,
         'startPrice': double.parse(_priceController.text),
         'currentPrice': double.parse(_priceController.text),
-        // [เพิ่ม] บันทึกราคาบิดขั้นต่ำลงฐานข้อมูล
         'minBidIncrement': double.parse(_minBidController.text),
         'startTime': FieldValue.serverTimestamp(),
         'endTime': Timestamp.fromDate(_selectedDateTime!),
@@ -122,7 +124,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
     _titleController.clear();
     _descController.clear();
     _priceController.clear();
-    _minBidController.clear(); // [เพิ่ม] เคลียร์ค่าเมื่อส่งฟอร์มเสร็จ
+    _minBidController.clear();
     setState(() { _selectedImages = []; _selectedCategory = null; _selectedDateTime = null; });
   }
 
@@ -149,7 +151,6 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
                   _buildInputLabel("Category"),
                   _buildDropdown(_categories, "Select Category", (v) => setState(() => _selectedCategory = v), _selectedCategory),
                   
-                  // จัด Layout ราคาเริ่มต้น กับ บิดขั้นต่ำ ให้สวยงาม
                   Row(
                     children: [
                       Expanded(
@@ -166,7 +167,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildInputLabel("Min Bid (฿)"), // [เพิ่ม] ช่องกรอกราคาบิดขั้นต่ำ
+                            _buildInputLabel("Min Bid (฿)"),
                             _buildTextField(_minBidController, "e.g. 50", isNumber: true),
                           ],
                         ),

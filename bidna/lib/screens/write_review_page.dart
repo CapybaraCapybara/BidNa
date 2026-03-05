@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// 🔴 Import Model & Service
 import 'package:bidna/models/review_model.dart';
 import 'package:bidna/services/review_service.dart';
 
@@ -45,35 +47,41 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      final currentUser = FirebaseAuth.instance.currentUser!;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not logged in");
 
-      // ดึงข้อมูล reviewer
-      final userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUser.uid)
-          .get();
-      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      // ดึงข้อมูลคนรีวิว (ชื่อ, รูป)
+      final userDoc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
+      String reviewerName = 'Anonymous';
+      String? reviewerImage;
+      if (userDoc.exists) {
+        final data = userDoc.data() as Map<String, dynamic>;
+        reviewerName = data['displayName'] ?? 'Anonymous';
+        reviewerImage = data['profileImage'];
+      }
 
+      // 🔴 สร้าง ReviewModel ให้ครบถ้วน
       final review = ReviewModel(
-        reviewId:      '',
-        reviewerId:    currentUser.uid,
-        reviewerName:  userData['displayName'] ?? 'Anonymous',
-        reviewerImage: userData['profileImage'],
-        sellerId:      widget.sellerId,
-        productId:     widget.productId,
-        productTitle:  widget.productTitle,
-        rating:        _selectedRating,
-        comment:       comment,
-        createdAt:     DateTime.now(),
+        reviewId: '', // จะถูก Auto-Generate ใน Service
+        reviewerId: user.uid,
+        reviewerName: reviewerName,
+        reviewerImage: reviewerImage,
+        sellerId: widget.sellerId,
+        productId: widget.productId,
+        productTitle: widget.productTitle,
+        rating: _selectedRating,
+        comment: comment,
+        createdAt: DateTime.now(),
       );
 
+      // 🔴 เรียกใช้ Service บันทึกรีวิวและอัปเดต Rating คนขายอัตโนมัติ
       await _reviewService.submitReview(review);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ส่ง Review สำเร็จ! ขอบคุณครับ 🙏'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('ขอบคุณสำหรับการรีวิว! 🎉'), backgroundColor: Colors.green),
         );
-        Navigator.pop(context, true); // ส่ง true กลับเพื่อบอกว่า review สำเร็จ
+        Navigator.pop(context); // ปิดหน้าต่างรีวิว
       }
     } catch (e) {
       if (mounted) {
@@ -91,95 +99,46 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Write a Review', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text("Write a Review", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // ชื่อสินค้า
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F7FF),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE0DBFF)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.gavel, color: Color(0xFF6347EB), size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      widget.productTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // เลือกดาว
-            const Text('Rating', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 12),
+            Text('ให้คะแนนสินค้า "${widget.productTitle}"', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Text(_ratingLabel(_selectedRating), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF6347EB))),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (i) {
-                final starVal = (i + 1).toDouble();
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedRating = starVal),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(
-                      _selectedRating >= starVal ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: _selectedRating >= starVal ? const Color(0xFFFFC107) : Colors.grey.shade300,
-                      size: 44,
-                    ),
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    index < _selectedRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: index < _selectedRating ? const Color(0xFFFFC107) : Colors.grey.shade300,
+                    size: 40,
                   ),
+                  onPressed: () => setState(() => _selectedRating = index + 1.0),
                 );
               }),
             ),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  _ratingLabel(_selectedRating),
-                  style: const TextStyle(color: Color(0xFF6347EB), fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // ช่องความคิดเห็น
-            const Text('Comment', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 30),
             TextFormField(
               controller: _commentController,
               maxLines: 5,
-              maxLength: 300,
               decoration: InputDecoration(
-                hintText: 'แชร์ประสบการณ์ของคุณกับผู้ขายคนนี้...',
+                hintText: "แบ่งปันประสบการณ์ของคุณเกี่ยวกับสินค้านี้...",
                 hintStyle: const TextStyle(color: Colors.grey),
                 filled: true,
                 fillColor: const Color(0xFFF8F9FD),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                counterStyle: const TextStyle(color: Colors.grey, fontSize: 11),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
             const SizedBox(height: 32),
-
-            // ปุ่ม Submit
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -191,14 +150,8 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
                   elevation: 0,
                 ),
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 24, width: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Submit Review',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                    ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Submit Review', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
           ],
@@ -208,10 +161,10 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
   }
 
   String _ratingLabel(double rating) {
-    if (rating >= 5) return 'Excellent! ⭐';
-    if (rating >= 4) return 'Good 👍';
-    if (rating >= 3) return 'Okay 😐';
-    if (rating >= 2) return 'Poor 👎';
-    return 'Terrible 😞';
+    if (rating >= 5) return 'ยอดเยี่ยม! ⭐';
+    if (rating >= 4) return 'ดีมาก 👍';
+    if (rating >= 3) return 'พอใช้ 😐';
+    if (rating >= 2) return 'ควรปรับปรุง 👎';
+    return 'แย่มาก 😞';
   }
 }
