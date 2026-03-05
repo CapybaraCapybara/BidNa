@@ -34,17 +34,50 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       actions: [
         if (extraActions != null) ...extraActions!,
         
-        // ปุ่มกระดิ่งแจ้งเตือน
-        IconButton(
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationScreen()));
-          },
-          icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
+        // ปุ่มกระดิ่งแจ้งเตือนพร้อม Badge สีแดง
+        Center(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseAuth.instance.currentUser != null
+                ? FirebaseFirestore.instance
+                    .collection('Users')
+                    .doc(FirebaseAuth.instance.currentUser!.uid)
+                    .collection('notifications')
+                    .where('isRead', isEqualTo: false)
+                    .snapshots()
+                : const Stream.empty(),
+            builder: (context, snapshot) {
+              int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+              return Badge(
+                isLabelVisible: unreadCount > 0,
+                label: Text(
+                  unreadCount > 99 ? '99+' : unreadCount.toString(),
+                  style: const TextStyle(color: Colors.white, fontSize: 10),
+                ),
+                backgroundColor: Colors.redAccent,
+                offset: const Offset(4, -4),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.notifications_none_rounded, 
+                    color: Colors.black, 
+                    size: 28, // ปรับขนาดให้พอดีขึ้นเมื่อมี Badge
+                  ),
+                ),
+              );
+            },
+          ),
         ),
+        
+        const SizedBox(width: 12), // เพิ่มระยะห่างระหว่างกระดิ่งกับรูปโปรไฟล์
         
         // รูปโปรไฟล์มุมขวาบน (ดึงสดจาก Firestore)
         Padding(
-          padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+          padding: const EdgeInsets.only(right: 16.0),
           child: StreamBuilder<DocumentSnapshot>(
             stream: FirebaseAuth.instance.currentUser != null
                 ? FirebaseFirestore.instance.collection('Users').doc(FirebaseAuth.instance.currentUser!.uid).snapshots()
