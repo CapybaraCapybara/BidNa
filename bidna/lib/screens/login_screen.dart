@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/custom_textfield.dart';
 import '../widgets/social_button.dart';
 import '../screens/main_navigation.dart';
+import '../services/auth_service.dart'; // [เพิ่ม] Import AuthService ที่เราสร้างใหม่
+import '../models/auth_result_model.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -12,7 +13,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // [เพิ่ม] Key สำหรับจัดการ Form Validation
   final _formKey = GlobalKey<FormState>();
 
   bool _isPasswordVisible = false;
@@ -22,10 +22,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // [เพิ่ม] เรียกใช้งาน AuthService
+  final AuthService _authService = AuthService();
+
   Future<void> _submitAuth() async {
-    // [เพิ่ม] ตรวจสอบความถูกต้องของฟอร์มก่อนทำงานต่อ
     if (!_formKey.currentState!.validate()) {
-      // ถ้าข้อมูลไม่ผ่าน (เช่น เมลผิด, รหัสสั้น) ให้หยุดการทำงานตรงนี้
       return;
     }
 
@@ -33,49 +34,35 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-      try {
-      UserCredential userCredential;
-      if (_isSignIn) {
-        userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-      } else {
-        userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-      }
+    // 🔴 เรียกใช้ Service และรับผลลัพธ์กลับมาเป็น Model
+    AuthResultModel result = await _authService.authenticateUser(
+      isSignIn: _isSignIn,
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      if (mounted) {
-        // [แก้ไขตรงนี้] เปลี่ยนจาก HomeScreen เป็น MainNavigation
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      // 🔴 เช็คจาก Model ว่าผ่านไหม
+      if (result.isSuccess) {
+        // สำเร็จ พาไปหน้า MainNavigation
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MainNavigation(), 
+            builder: (context) => const MainNavigation(),
           ),
         );
-      }
-    } on FirebaseAuthException catch (e) {
-      String message = "เกิดข้อผิดพลาด";
-      if (e.code == 'user-not-found') {
-        message = 'ไม่พบผู้ใช้งานนี้';
-      } else if (e.code == 'wrong-password') {
-        message = 'รหัสผ่านไม่ถูกต้อง';
-      } else if (e.code == 'email-already-in-use') {
-        message = 'อีเมลนี้ถูกใช้งานแล้ว';
       } else {
-        message = e.message ?? "เกิดข้อผิดพลาด";
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        // ไม่สำเร็จ เอาข้อความ Error จาก Model มาโชว์
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? "เกิดข้อผิดพลาด"), 
+            backgroundColor: Colors.red
+          ),
+        );
       }
     }
   }
@@ -159,7 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   child: Form(
-                    // [เพิ่ม] หุ้ม Column ด้วย Form และใส่ Key
                     key: _formKey,
                     child: Column(
                       children: [
@@ -233,12 +219,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           hint: "you@example.com",
                           prefixIcon: Icons.email_outlined,
                           controller: _emailController,
-                          // [เพิ่ม] Validator เช็ค Email
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'กรุณากรอกอีเมล';
                             }
-                            // ใช้ Regex อย่างง่ายเช็ครูปแบบอีเมล
                             final emailRegex = RegExp(
                               r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
                             );
@@ -256,7 +240,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           isPassword: true,
                           isVisible: _isPasswordVisible,
                           controller: _passwordController,
-                          // [เพิ่ม] Validator เช็ค Password
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'กรุณากรอกรหัสผ่าน';
@@ -354,7 +337,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     GestureDetector(
                       onTap: () {
                         setState(() {
-                          _isSignIn = false; // สลับไปหน้า Sign Up
+                          _isSignIn = false; 
                         });
                       },
                       child: const Text(
@@ -380,7 +363,6 @@ class _LoginScreenState extends State<LoginScreen> {
       onTap: () {
         setState(() {
           _isSignIn = text == "Sign In";
-          // [Optional] ล้างค่า Error หรือ Text เมื่อสลับ Tab
           _formKey.currentState?.reset();
         });
       },
@@ -415,58 +397,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
-// class HomeScreen extends StatelessWidget {
-//   final User user;
-
-//   const HomeScreen({Key? key, required this.user}) : super(key: key);
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text("BidNa Home"),
-//         backgroundColor: const Color(0xFF6C5CE7),
-//       ),
-//       body: Center(
-//         child: Column(
-//           mainAxisAlignment: MainAxisAlignment.center,
-//           children: [
-//             const Icon(Icons.check_circle, color: Colors.green, size: 80),
-//             const SizedBox(height: 20),
-//             const Text(
-//               "เข้าสู่ระบบสำเร็จ!",
-//               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-//             ),
-//             const SizedBox(height: 10),
-//             Text(
-//               "อีเมลของคุณคือ: ${user.email}",
-//               style: const TextStyle(fontSize: 16),
-//             ),
-//             const SizedBox(height: 30),
-//             ElevatedButton(
-//               onPressed: () async {
-//                 await FirebaseAuth.instance.signOut();
-//                 if (context.mounted) {
-//                   Navigator.pushReplacement(
-//                     context,
-//                     MaterialPageRoute(
-//                       builder: (context) => const LoginScreen(),
-//                     ),
-//                   );
-//                 }
-//               },
-//               style: ElevatedButton.styleFrom(
-//                 backgroundColor: Colors.redAccent,
-//               ),
-//               child: const Text(
-//                 "ออกจากระบบ",
-//                 style: TextStyle(color: Colors.white),
-//               ),
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
