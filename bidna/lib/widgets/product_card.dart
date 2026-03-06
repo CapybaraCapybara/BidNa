@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/models/product_model.dart';
 
 class ProductCard extends StatefulWidget {
-  final ProductModel product; // 🔴 รับค่าเป็น ProductModel
+  final ProductModel product;
   final VoidCallback? onTap;
 
   const ProductCard({
@@ -21,22 +21,35 @@ class ProductCard extends StatefulWidget {
 
 class _ProductCardState extends State<ProductCard> {
   Timer? _timer;
-  late DateTime _endTime;
 
   @override
   void initState() {
     super.initState();
-    // 🔴 เข้าถึงค่าผ่าน Model 
-    _endTime = widget.product.endTime;
+    _startTimer();
+  }
 
+  // 🔴 แยกฟังก์ชันสร้าง Timer ออกมา เพื่อให้เรียกซ้ำได้
+  void _startTimer() {
+    _timer?.cancel(); // เคลียร์ Timer ตัวเก่าทิ้งก่อน
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
-        if (DateTime.now().isAfter(_endTime)) {
+        // ใช้เวลาจาก widget.product.endTime โดยตรง
+        if (DateTime.now().isAfter(widget.product.endTime)) {
           _timer?.cancel();
         }
         setState(() {});
       }
     });
+  }
+
+  // 🔴 หัวใจสำคัญ: เมื่อ GridView รีไซเคิล Widget เอาของชิ้นใหม่มาใส่ ต้องเช็คและอัปเดต Timer
+  @override
+  void didUpdateWidget(covariant ProductCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.id != widget.product.id || 
+        oldWidget.product.endTime != widget.product.endTime) {
+      _startTimer(); // ถ้ารหัสสินค้าเปลี่ยน หรือเวลาเปลี่ยน ให้เริ่มนับใหม่
+    }
   }
 
   @override
@@ -47,12 +60,12 @@ class _ProductCardState extends State<ProductCard> {
 
   @override
   Widget build(BuildContext context) {
-    // 🔴 เข้าถึงค่าผ่าน Model
+    // 🔴 ดึงค่าจาก widget.product สดๆ เสมอ
     String? base64Image = widget.product.images.isNotEmpty ? widget.product.images[0] : null;
     double price = widget.product.currentPrice;
     String title = widget.product.title;
 
-    Duration remaining = _endTime.difference(DateTime.now());
+    Duration remaining = widget.product.endTime.difference(DateTime.now());
     bool isEnded = remaining.isNegative;
     bool isUrgent = remaining.inMinutes < 10 && !isEnded;
 
@@ -161,7 +174,7 @@ class _ProductCardState extends State<ProductCard> {
                     StreamBuilder<QuerySnapshot>(
                       stream: FirebaseFirestore.instance
                           .collection('Products')
-                          .doc(widget.product.id) // 🔴 ใช้ id จาก Model
+                          .doc(widget.product.id)
                           .collection('bids')
                           .snapshots(),
                       builder: (context, snapshot) {

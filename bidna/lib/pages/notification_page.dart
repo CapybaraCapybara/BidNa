@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/screens/product_details_page.dart';
-import 'package:bidna/screens/chat_screens.dart';
+import 'package:bidna/pages/product_details_page.dart';
+import 'package:bidna/pages/chat_page.dart';
 
 // 🔴 Import Service & Model
 import 'package:bidna/models/notification_model.dart';

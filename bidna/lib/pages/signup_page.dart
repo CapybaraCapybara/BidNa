@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_textfield.dart';
 import '../widgets/social_button.dart';
-import '../screens/main_navigation.dart';
+import 'navigation_bar.dart';
 import '../services/auth_service.dart'; // [เพิ่ม] Import AuthService ที่เราสร้างใหม่
 import '../models/auth_result_model.dart';
 

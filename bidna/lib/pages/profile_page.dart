@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'package:bidna/screens/login_screen.dart';
+import 'package:bidna/pages/signup_page.dart';
 
 // 🔴 Import Service
 import 'package:bidna/services/user_service.dart';

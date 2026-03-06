@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:bidna/screens/HomeScreen.dart';
-import '../screens/create_list_page.dart';
-import '../screens/profile_page.dart';
-import '../screens/my_bid_page.dart';
-import '../screens/chat_list_page.dart';
+import 'package:bidna/pages/explore_page.dart';
+import 'create_list_page.dart';
+import 'profile_page.dart';
+import 'my_bid_page.dart';
+import 'chat_list_page.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});

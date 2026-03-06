@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/screens/notification_screen.dart';
-import 'package:bidna/screens/user_profile_view_page.dart';
+import 'package:bidna/pages/notification_page.dart';
+import 'package:bidna/pages/user_profile_view_page.dart';
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/screens/login_screen.dart';
-import 'package:bidna/screens/main_navigation.dart';
+import 'package:bidna/pages/signup_page.dart';
+import 'package:bidna/pages/navigation_bar.dart';
 
 class App extends StatelessWidget {
   const App({super.key});

@@ -8,8 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:bidna/models/review_model.dart';
 import 'package:bidna/models/product_model.dart';
 import 'package:bidna/services/review_service.dart';
-import 'package:bidna/screens/profile_page.dart';
-import 'package:bidna/screens/product_details_page.dart';
+import 'package:bidna/pages/profile_page.dart';
+import 'package:bidna/pages/product_details_page.dart';
 
 class UserProfileViewPage extends StatefulWidget {
   final String targetUserId;

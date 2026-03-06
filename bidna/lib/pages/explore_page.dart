@@ -1,12 +1,12 @@
 import 'dart:convert';
-import 'package:bidna/screens/profile_page.dart';
+import 'package:bidna/pages/profile_page.dart';
 import 'package:bidna/widgets/filter_modal.dart';
 import 'package:bidna/widgets/product_card.dart';
-import 'package:bidna/screens/product_details_page.dart';
+import 'package:bidna/pages/product_details_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:bidna/screens/notification_screen.dart';
+import 'package:bidna/pages/notification_page.dart';
 import 'package:bidna/widgets/custom_app_bar.dart';
 
 // 🔴 Import Model & Service

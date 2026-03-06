@@ -6,9 +6,9 @@ import 'package:intl/intl.dart';
 
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
-import 'package:bidna/screens/chat_screens.dart';
-import 'package:bidna/screens/user_profile_view_page.dart';
-import 'package:bidna/screens/write_review_page.dart';
+import 'package:bidna/pages/chat_page.dart';
+import 'package:bidna/pages/user_profile_view_page.dart';
+import 'package:bidna/pages/write_review_page.dart';
 
 // 🔴 Import Models & Services
 import 'package:bidna/models/product_model.dart';
