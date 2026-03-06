@@ -8,7 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:bidna/models/review_model.dart';
 import 'package:bidna/models/product_model.dart';
 import 'package:bidna/services/review_service.dart';
-import 'package:bidna/pages/profile_page.dart';
+import 'package:bidna/pages/profile_edit_page.dart';
 import 'package:bidna/pages/product_details_page.dart';
 
 class UserProfileViewPage extends StatefulWidget {
@@ -84,7 +84,7 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
         actions: [
           if (_isOwnProfile)
             IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF6347EB)),
+              icon: const Icon(Icons.settings, color: Color(0xFF6347EB)),
               onPressed: () {
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
               },
@@ -123,13 +123,31 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
           const SizedBox(height: 16),
           Text(_displayName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
+          
+          // 🔴 จุดที่เพิ่มเข้ามา: แสดงเบอร์โทรศัพท์ (ถ้ามีข้อมูล)
+          if (_phoneNumber.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.phone_iphone, color: Colors.grey, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    _phoneNumber,
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.star_rounded, color: Color(0xFFFFC107), size: 20),
               const SizedBox(width: 4),
               Text(
-                '${_ratingCount > 0 ? _rating.toStringAsFixed(1) : "N/A"} (${_ratingCount} reviews)',
+                '${_ratingCount > 0 ? _rating.toStringAsFixed(1) : "N/A"} ($_ratingCount reviews)',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
               ),
             ],

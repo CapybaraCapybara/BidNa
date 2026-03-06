@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:bidna/pages/profile_page.dart';
+import 'package:bidna/pages/profile_edit_page.dart';
 import 'package:bidna/widgets/filter_modal.dart';
 import 'package:bidna/widgets/product_card.dart';
 import 'package:bidna/pages/product_details_page.dart';
