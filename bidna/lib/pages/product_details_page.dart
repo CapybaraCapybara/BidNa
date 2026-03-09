@@ -39,10 +39,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       ),
       extendBodyBehindAppBar: true,
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('Products')
-            .doc(widget.productId)
-            .snapshots(),
+        stream: _productService.getProductStream(widget.productId),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -363,10 +360,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       /* --- ส่วนผู้สร้างประมูล --- */
                       FutureBuilder<DocumentSnapshot>(
                         future: sellerUid.isNotEmpty
-                            ? FirebaseFirestore.instance
-                                  .collection('Users')
-                                  .doc(sellerUid)
-                                  .get()
+                            ? _productService.getUserData(sellerUid)
                             : null,
                         builder: (context, userSnapshot) {
                           String displaySellerName = fallbackSellerName;
@@ -590,12 +584,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ),
                           const SizedBox(height: 12),
                           StreamBuilder<QuerySnapshot>(
-                            stream: FirebaseFirestore.instance
-                                .collection('Products')
-                                .doc(widget.productId)
-                                .collection('bids')
-                                .orderBy('timestamp', descending: true)
-                                .snapshots(),
+                            stream: _productService.getBidHistoryStream(
+                              widget.productId,
+                            ),
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
@@ -634,10 +625,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
                                   return FutureBuilder<DocumentSnapshot>(
                                     future: bidderUid.isNotEmpty
-                                        ? FirebaseFirestore.instance
-                                              .collection('Users')
-                                              .doc(bidderUid)
-                                              .get()
+                                        ? _productService.getUserData(bidderUid)
                                         : null,
                                     builder: (context, userSnapshot) {
                                       String displayName = "Anonymous";
