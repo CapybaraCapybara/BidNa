@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image/image.dart' as img;
 import 'package:bidna/models/chat_model.dart';
 
 class ChatService {
@@ -8,7 +11,24 @@ class ChatService {
   String getRoomId(String uid1, String uid2) {
     List<String> ids = [uid1, uid2];
     ids.sort();
-    return ids.join("_");
+    return ids.join('_');
+  }
+
+  // B4: ย้าย image processing ออกจาก UI มาไว้ใน Service
+  Future<String> processImageToBase64(File file) async {
+    final bytes = await file.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return '';
+    final resized = img.copyResize(decoded, width: 500);
+    final compressed = img.encodeJpg(resized, quality: 60);
+    return base64Encode(compressed);
+  }
+
+  // B4: ย้าย sender name fetch ออกจาก UI มาไว้ใน Service
+  Future<String> getSenderName(String uid) async {
+    final doc = await _db.collection('Users').doc(uid).get();
+    if (!doc.exists) return 'Someone';
+    return (doc.data() as Map<String, dynamic>)['displayName'] ?? 'Someone';
   }
 
   // B4: ย้าย Stream query ออกจาก UI มาไว้ใน Service
