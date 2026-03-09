@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_model.dart';
 import '../models/auth_result_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // 1. ฟังก์ชันดึงข้อมูล User ปัจจุบันทั้งหมด
   User? getCurrentUser() {
@@ -20,6 +22,7 @@ class AuthService {
     required bool isSignIn,
     required String email,
     required String password,
+    String? username, // รับ username เฉพาะตอน Sign Up
   }) async {
     try {
       UserCredential userCredential;
@@ -33,6 +36,16 @@ class AuthService {
           email: email,
           password: password,
         );
+
+        // 🔴 บันทึก displayName ลง Firestore ทันทีที่สมัครสำเร็จ
+        if (userCredential.user != null && username != null && username.isNotEmpty) {
+          await _db.collection('Users').doc(userCredential.user!.uid).set({
+            'displayName': username,
+            'email': email,
+            'couponBalance': 0,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
       }
 
       // 🔴 แปลง User ของ Firebase เป็น UserModel ของเรา

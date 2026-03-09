@@ -4,6 +4,40 @@ import 'package:bidna/models/review_model.dart';
 class ReviewService {
   final _db = FirebaseFirestore.instance;
 
+  // B4: ย้าย logic ดึงข้อมูล reviewer ออกจาก UI มาไว้ใน Service
+  Future<ReviewModel> buildReviewFromCurrentUser({
+    required String reviewerUid,
+    required String sellerId,
+    required String productId,
+    required String productTitle,
+    required double rating,
+    required String comment,
+  }) async {
+    final userDoc = await _db.collection('Users').doc(reviewerUid).get();
+
+    String reviewerName = 'Anonymous';
+    String? reviewerImage;
+
+    if (userDoc.exists) {
+      final data = userDoc.data() as Map<String, dynamic>;
+      reviewerName = data['displayName'] ?? 'Anonymous';
+      reviewerImage = data['profileImage'];
+    }
+
+    return ReviewModel(
+      reviewId: '',
+      reviewerId: reviewerUid,
+      reviewerName: reviewerName,
+      reviewerImage: reviewerImage,
+      sellerId: sellerId,
+      productId: productId,
+      productTitle: productTitle,
+      rating: rating,
+      comment: comment,
+      createdAt: DateTime.now(),
+    );
+  }
+
   // ── ส่ง review และอัปเดต rating ของ seller อัตโนมัติ ──
   Future<void> submitReview(ReviewModel review) async {
     final batch = _db.batch();
