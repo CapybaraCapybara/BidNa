@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart'; 
 import 'package:bidna/widgets/custom_app_bar.dart';
+import 'package:bidna/services/auth_service.dart';
 // 🔴 Import Service
 import 'package:bidna/services/product_service.dart';
 
@@ -22,6 +23,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _minBidController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   List<File> _selectedImages = [];
   String? _selectedCategory;
@@ -94,7 +96,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         base64Images.add(await _processImageToBase64(file));
       }
 
-      User? currentUser = FirebaseAuth.instance.currentUser;
+      User? currentUser = _authService.getCurrentUser();
       
       // 🔴 ส่งข้อมูลให้ ProductService จัดการสร้างรายการ
       await _productService.createListing({
@@ -111,7 +113,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         'sellerUid': currentUser?.uid,  
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("สร้างรายการสำเร็จ!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Created listing successfully!")));
       _resetForm();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));

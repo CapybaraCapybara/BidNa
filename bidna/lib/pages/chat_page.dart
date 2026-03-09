@@ -1,13 +1,14 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
 
 // Models & Services
 import 'package:bidna/services/chat_service.dart';
 import 'package:bidna/models/chat_model.dart';
+import 'package:bidna/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Widgets (B4: แยก UI ออกจาก page)
 import 'package:bidna/widgets/message_bubble.dart';
@@ -32,8 +33,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final ChatService _chatService = ChatService();
-  final String _myUid = FirebaseAuth.instance.currentUser!.uid;
+   final AuthService _authService = AuthService();
 
+  late final String _myUid;
   late final String _roomId;
   late final Stream<QuerySnapshot> _messagesStream;
 
@@ -42,15 +44,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // B4: ดึง uid และ stream จาก Service ทั้งหมด
+    _myUid = _authService.getCurrentUserId() ?? "";
     _roomId = _chatService.getRoomId(_myUid, widget.peerId);
-
-    // B3: init stream ครั้งเดียวใน initState
-    _messagesStream = FirebaseFirestore.instance
-        .collection('ChatRooms')
-        .doc(_roomId)
-        .collection('messages')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
+    _messagesStream = _chatService.getMessagesStream(_roomId);
   }
 
   @override
