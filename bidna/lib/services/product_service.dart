@@ -125,7 +125,7 @@ class ProductService {
 
     // 2. อัปเดตสถานะสินค้าเป็น 'COMPLETED' (จบกระบวนการทั้งหมด)
     DocumentReference productRef = _db.collection('Products').doc(productId);
-    batch.update(productRef, {'status': 'closed'});
+    batch.update(productRef, {'status': 'COMPLETED'});
 
     await batch.commit();
   }
@@ -147,5 +147,10 @@ class ProductService {
   // 3. ดึงข้อมูล User (ใช้ดึงได้ทั้งข้อมูลคนขาย และข้อมูลคนประมูล)
   Future<DocumentSnapshot> getUserData(String uid) {
     return _db.collection('Users').doc(uid).get();
+  }
+
+  // ดึงข้อมูล User แบบ Real-time (ใช้สำหรับดักฟังการเปลี่ยนแปลง Rating)
+  Stream<DocumentSnapshot> getUserStream(String uid) {
+    return _db.collection('Users').doc(uid).snapshots();
   }
 }

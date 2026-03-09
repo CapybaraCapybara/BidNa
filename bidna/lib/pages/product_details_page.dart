@@ -10,6 +10,8 @@ import 'package:bidna/widgets/auction_result_cards.dart';
 import 'package:bidna/pages/chat_page.dart';
 import 'package:bidna/pages/user_profile_view_page.dart';
 import 'package:bidna/pages/write_review_page.dart';
+import 'package:bidna/widgets/seller_info_card.dart';
+import 'package:bidna/widgets/bid_history_item.dart';
 
 // 🔴 Import Models & Services
 import 'package:bidna/models/product_model.dart';
@@ -111,7 +113,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       const SizedBox(height: 15),
 
                       // กรณีที่ 1: สถานะเป็น 'COMPLETED' (จบงานสมบูรณ์แบบแล้ว)
-                      if (productStatus == 'closed')
+                      if (productStatus == 'COMPLETED' && amIWinner)
                         const OrderCompletedCard()
                       // กรณีที่ 2: สถานะเป็น 'PAID' และเราคือผู้ชนะ (ต้องโชว์ปุ่มรอรับของ)
                       else if (productStatus == 'PAID' && amIWinner)
@@ -147,7 +149,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           },
                         )
                       // กรณีที่ 3: สถานะเป็น 'PAID' แต่เราไม่ใช่ผู้ชนะ (คนอื่นมองเห็น)
-                      else if (productStatus == 'PAID')
+                      else if (productStatus == 'PAID' || (isAuctionEnded && !amIWinner))
                         const EndedActionCard()
                       else if (isAuctionEnded && amIWinner)
                         WinnerActionCard(
@@ -360,199 +362,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       const SizedBox(height: 20),
 
                       /* --- ส่วนผู้สร้างประมูล --- */
-                      FutureBuilder<DocumentSnapshot>(
-                        future: sellerUid.isNotEmpty
-                            ? _productService.getUserData(sellerUid)
-                            : null,
-                        builder: (context, userSnapshot) {
-                          String displaySellerName = fallbackSellerName;
-                          String? profileImageBase64;
-                          double sellerRating = 0.0;
-                          int sellerRatingCount = 0;
-
-                          if (userSnapshot.connectionState ==
-                                  ConnectionState.done &&
-                              userSnapshot.hasData &&
-                              userSnapshot.data!.exists) {
-                            var userData =
-                                userSnapshot.data!.data()
-                                    as Map<String, dynamic>;
-                            displaySellerName =
-                                userData['displayName'] ?? fallbackSellerName;
-                            profileImageBase64 = userData['profileImage'];
-                            sellerRating = (userData['rating'] ?? 0.0)
-                                .toDouble();
-                            sellerRatingCount = (userData['ratingCount'] ?? 0)
-                                .toInt();
-                          }
-
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  spreadRadius: 1,
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        if (sellerUid.isNotEmpty) {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  UserProfileViewPage(
-                                                    targetUserId: sellerUid,
-                                                  ),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                      child: Row(
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 20,
-                                            backgroundColor: Colors.grey[300],
-                                            backgroundImage:
-                                                (profileImageBase64 != null &&
-                                                    profileImageBase64
-                                                        .isNotEmpty)
-                                                ? MemoryImage(
-                                                    base64Decode(
-                                                      profileImageBase64,
-                                                    ),
-                                                  )
-                                                : null,
-                                            child:
-                                                (profileImageBase64 == null ||
-                                                    profileImageBase64.isEmpty)
-                                                ? const Icon(
-                                                    Icons.person,
-                                                    color: Colors.white,
-                                                  )
-                                                : null,
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                displaySellerName,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  const Icon(
-                                                    Icons.star,
-                                                    color: Colors.amber,
-                                                    size: 16,
-                                                  ),
-                                                  Text(
-                                                    '${sellerRatingCount > 0 ? sellerRating.toStringAsFixed(1) : "N/A"} • $sellerRatingCount reviews',
-                                                    style: const TextStyle(
-                                                      color: Colors.grey,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    OutlinedButton(
-                                      onPressed: () {
-                                        if (currentUser == null) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                "กรุณาเข้าสู่ระบบเพื่อแชท",
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        if (myUid == sellerUid) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                "คุณไม่สามารถแชทกับตัวเองได้",
-                                              ),
-                                            ),
-                                          );
-                                          return;
-                                        }
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ChatScreen(
-                                              peerId: sellerUid,
-                                              peerName: displaySellerName,
-                                              peerAvatarBase64:
-                                                  profileImageBase64,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(
-                                          color: Colors.grey,
-                                          width: 1,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                      child: const Row(
-                                        children: [
-                                          Icon(
-                                            Icons.chat_bubble_outline,
-                                            size: 16,
-                                            color: Colors.grey,
-                                          ),
-                                          SizedBox(width: 4),
-                                          Text(
-                                            "Chat",
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                      SellerInfoCard(
+                        sellerUid: sellerUid,
+                        currentUserUid: myUid,
+                        productService: _productService,
                       ),
 
                       const SizedBox(height: 20),
@@ -610,186 +423,52 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: bids.length,
                                 itemBuilder: (context, index) {
-                                  var bidData =
-                                      bids[index].data()
-                                          as Map<String, dynamic>;
+                                  var bidData = bids[index].data() as Map<String, dynamic>;
                                   bool isHighest = index == 0;
                                   String bidderUid = bidData['userId'] ?? "";
-                                  double amount = (bidData['price'] ?? 0)
-                                      .toDouble();
-                                  Timestamp? ts =
-                                      bidData['timestamp'] as Timestamp?;
+                                  double amount = (bidData['price'] ?? 0).toDouble();
+                                  Timestamp? ts = bidData['timestamp'] as Timestamp?;
                                   String timeAgo = ts != null
-                                      ? DateFormat(
-                                          'dd MMM, HH:mm',
-                                        ).format(ts.toDate())
+                                      ? DateFormat('dd MMM, HH:mm').format(ts.toDate())
                                       : "Just now";
 
                                   return FutureBuilder<DocumentSnapshot>(
                                     future: bidderUid.isNotEmpty
-                                        ? _productService.getUserData(bidderUid)
+                                        ? _productService.getUserData(bidderUid) 
                                         : null,
                                     builder: (context, userSnapshot) {
                                       String displayName = "Anonymous";
                                       String? profileImageBase64;
 
-                                      if (userSnapshot.connectionState ==
-                                              ConnectionState.done &&
+                                      if (userSnapshot.connectionState == ConnectionState.done &&
                                           userSnapshot.hasData &&
                                           userSnapshot.data!.exists) {
-                                        var userData =
-                                            userSnapshot.data!.data()
-                                                as Map<String, dynamic>;
-                                        displayName =
-                                            userData['displayName'] ??
-                                            "Anonymous";
-                                        profileImageBase64 =
-                                            userData['profileImage'];
+                                        var userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                                        displayName = userData['displayName'] ?? "Anonymous";
+                                        profileImageBase64 = userData['profileImage'];
                                       }
 
+                                      // 🌟 ลบโค้ดวาด UI ของเดิมทิ้ง แล้วเรียกใช้ Widget ตัวนี้แทน!
+                                      // ครอบด้วย GestureDetector เพื่อให้กดไปดู Profile ได้เหมือนเดิม
                                       return GestureDetector(
                                         onTap: () {
                                           if (bidderUid.isNotEmpty) {
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
-                                                builder: (_) =>
-                                                    UserProfileViewPage(
-                                                      targetUserId: bidderUid,
-                                                    ),
+                                                builder: (_) => UserProfileViewPage(
+                                                  targetUserId: bidderUid,
+                                                ),
                                               ),
                                             );
                                           }
                                         },
-                                        child: Container(
-                                          margin: const EdgeInsets.only(
-                                            bottom: 12,
-                                          ),
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: isHighest
-                                                ? const Color(
-                                                    0xFF6347EB,
-                                                  ).withOpacity(0.05)
-                                                : Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color: isHighest
-                                                  ? const Color(
-                                                      0xFF6347EB,
-                                                    ).withOpacity(0.3)
-                                                  : Colors.grey.shade200,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              CircleAvatar(
-                                                radius: 20,
-                                                backgroundColor:
-                                                    Colors.grey.shade200,
-                                                backgroundImage:
-                                                    (profileImageBase64 !=
-                                                            null &&
-                                                        profileImageBase64
-                                                            .isNotEmpty)
-                                                    ? MemoryImage(
-                                                        base64Decode(
-                                                          profileImageBase64,
-                                                        ),
-                                                      )
-                                                    : null,
-                                                child:
-                                                    (profileImageBase64 ==
-                                                            null ||
-                                                        profileImageBase64
-                                                            .isEmpty)
-                                                    ? const Icon(
-                                                        Icons.person,
-                                                        color: Colors.grey,
-                                                      )
-                                                    : null,
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      displayName,
-                                                      style: TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        color: isHighest
-                                                            ? const Color(
-                                                                0xFF6347EB,
-                                                              )
-                                                            : Colors.black87,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      timeAgo,
-                                                      style: const TextStyle(
-                                                        color: Colors.grey,
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                                children: [
-                                                  Text(
-                                                    "฿${NumberFormat('#,###').format(amount)}",
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 16,
-                                                      color: isHighest
-                                                          ? const Color(
-                                                              0xFF6347EB,
-                                                            )
-                                                          : Colors.black87,
-                                                    ),
-                                                  ),
-                                                  if (isHighest)
-                                                    Container(
-                                                      margin:
-                                                          const EdgeInsets.only(
-                                                            top: 4,
-                                                          ),
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 2,
-                                                          ),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(
-                                                          0xFF6347EB,
-                                                        ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
-                                                      ),
-                                                      child: const Text(
-                                                        "Highest",
-                                                        style: TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 10,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
+                                        child: BidHistoryItem(
+                                          username: displayName,
+                                          timeAgo: timeAgo,
+                                          amount: amount,
+                                          profileImageBase64: profileImageBase64,
+                                          isHighest: isHighest,
                                         ),
                                       );
                                     },

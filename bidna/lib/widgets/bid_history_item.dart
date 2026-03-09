@@ -1,3 +1,4 @@
+import 'dart:convert'; // 🌟 เพิ่ม import นี้สำหรับ decode รูป
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,15 +6,15 @@ class BidHistoryItem extends StatelessWidget {
   final String username;
   final String timeAgo;
   final double amount;
-  final String? avatarUrl; // สำหรับรูปโปรไฟล์ (ถ้ามี)
-  final bool isHighest; // สำหรับแสดง Badge "HIGHEST"
+  final String? profileImageBase64; // 🌟 เปลี่ยนชื่อให้ชัดเจนว่าเป็น Base64
+  final bool isHighest; 
 
   const BidHistoryItem({
     super.key,
     required this.username,
     required this.timeAgo,
     required this.amount,
-    this.avatarUrl,
+    this.profileImageBase64, // 🌟 รับค่า Base64
     this.isHighest = false,
   });
 
@@ -23,7 +24,6 @@ class BidHistoryItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        // ถ้าเป็นผู้ประมูลสูงสุด ให้มีขอบสีม่วงอ่อนๆ
         color: isHighest ? const Color(0xFFF5F6FF) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: isHighest
@@ -32,27 +32,27 @@ class BidHistoryItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 1. รูปโปรไฟล์ (CircleAvatar)
+          // 1. รูปโปรไฟล์
           CircleAvatar(
             radius: 20,
             backgroundColor: Colors.grey[200],
-            backgroundImage: avatarUrl != null
-                ? NetworkImage(avatarUrl!)
+            // 🌟 แก้ไขการดึงรูปให้รองรับ Base64
+            backgroundImage: (profileImageBase64 != null && profileImageBase64!.isNotEmpty)
+                ? MemoryImage(base64Decode(profileImageBase64!))
                 : null,
-            child: avatarUrl == null
+            child: (profileImageBase64 == null || profileImageBase64!.isEmpty)
                 ? const Icon(Icons.person, color: Colors.grey)
                 : null,
           ),
           const SizedBox(width: 12),
 
-          // 2. ชื่อและเวลา (Username & Time)
+          // 2. ชื่อและเวลา 
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    // 👇 1. เอา Flexible มาครอบ Text
                     Flexible(
                       child: Text(
                         username,
@@ -60,9 +60,8 @@ class BidHistoryItem extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
-                        maxLines: 1, // 👇 2. บังคับให้มีแค่ 1 บรรทัด
-                        overflow:
-                            TextOverflow.ellipsis, // 👇 3. ถ้ายาวไปให้เป็น ...
+                        maxLines: 1, 
+                        overflow: TextOverflow.ellipsis, 
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -98,7 +97,7 @@ class BidHistoryItem extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // 3. ยอดเงิน (Amount)
+          // 3. ยอดเงิน
           Text(
             "฿${NumberFormat('#,###').format(amount)}",
             style: TextStyle(
