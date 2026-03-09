@@ -201,7 +201,7 @@ class ProductService {
   Stream<QuerySnapshot> getSoldItemsStream(String sellerUid) {
     return _db.collection('Products')
         .where('sellerUid', isEqualTo: sellerUid)
-        .where('status', isEqualTo: 'closed')
+        .where('status', whereIn: ['closed', 'PAID', 'COMPLETED']) 
         .snapshots();
   }
 }
