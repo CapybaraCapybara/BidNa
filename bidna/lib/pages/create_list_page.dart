@@ -187,7 +187,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(_selectedDateTime == null ? "Select End Date & Time" : DateFormat('dd MMM yyyy, HH:mm').format(_selectedDateTime!),
-                               style: TextStyle(color: _selectedDateTime == null ? Colors.grey : Colors.black, fontWeight: _selectedDateTime == null ? FontWeight.normal : FontWeight.bold)),
+                              style: TextStyle(color: _selectedDateTime == null ? Colors.grey : Colors.black, fontWeight: _selectedDateTime == null ? FontWeight.normal : FontWeight.bold)),
                           const Icon(Icons.calendar_today, color: Color(0xFF6347EB), size: 20),
                         ],
                       ),

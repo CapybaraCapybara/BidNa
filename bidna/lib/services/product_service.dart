@@ -3,7 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/models/product_model.dart';
 
 class ProductService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db;
+
+  // 🔴 1. เพิ่ม Constructor ตรงนี้ เพื่อให้รับ FakeFirestore ตอนรันเทสได้
+  // แต่ถ้ารันแอปปกติ (ไม่ได้ส่งอะไรมา) ก็ให้ดึง FirebaseFirestore.instance ไปใช้ตามปกติ
+  ProductService({FirebaseFirestore? firestore}) 
+      : _db = firestore ?? FirebaseFirestore.instance;
 
   // ==========================================
   // 🟢 ส่วนที่เพิ่มใหม่สำหรับหน้า MyBidPage (ข้อ B4)
