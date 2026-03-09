@@ -88,7 +88,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isSubmitting = false); 
     }
   }
 
