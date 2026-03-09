@@ -373,21 +373,22 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
                       const SizedBox(height: 20),
                       const Text(
-                        "Description",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                          "Description",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        product.description,
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          height: 1.5,
+                        const SizedBox(height: 8),
+                        Text(
+                          product.description.trim().isEmpty ? "No description" : product.description,
+                          style: TextStyle(
+                            color: product.description.trim().isEmpty ? Colors.grey.shade500 : Colors.grey.shade700,
+                            fontStyle: product.description.trim().isEmpty ? FontStyle.italic : FontStyle.normal,
+                            height: 1.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
                       /* --- ประวัติการประมูล --- */
                       Column(
