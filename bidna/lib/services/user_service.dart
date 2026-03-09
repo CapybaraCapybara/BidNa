@@ -5,6 +5,16 @@ import 'package:bidna/models/notification_model.dart';
 class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+
+  Future<DocumentSnapshot> getUserData(String uid) {
+    return _db.collection('Users').doc(uid).get();
+  }
+
+  // 2. ดึงข้อมูล User แบบ Real-time (Stream) สำหรับดักฟังดาว/รีวิว
+  Stream<DocumentSnapshot> getUserStream(String uid) {
+    return _db.collection('Users').doc(uid).snapshots();
+  }
+
   // ==========================================
   // 🟢 ส่วนที่เพิ่มใหม่สำหรับหน้า NotificationScreen (ข้อ B4)
   // ==========================================
@@ -25,14 +35,7 @@ class UserService {
   // ==========================================
   // ⚪️ โค้ดเดิมของคุณ (ไม่ถูกปรับเปลี่ยนการทำงาน)
   // ==========================================
-  Future<DocumentSnapshot> getUserData(String uid) {
-    return _db.collection('Users').doc(uid).get();
-  }
 
-  // 🌟 2. ดึงข้อมูล User แบบ Real-time (Stream) สำหรับดักฟังดาว/รีวิว
-  Stream<DocumentSnapshot> getUserStream(String uid) {
-    return _db.collection('Users').doc(uid).snapshots();
-  }
 
   // อัปเดตข้อมูลโปรไฟล์
   Future<void> updateProfile({

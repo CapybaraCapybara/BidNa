@@ -34,13 +34,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
+          
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: currentUser == null
           ? const Center(child: Text("Please login to see notifications."))
@@ -50,7 +45,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
               builder: (context, snapshot) {
                 // B5: Error Handling
                 if (snapshot.hasError) {
-                  return const Center(child: Text("Error loading notifications."));
+                  return const Center(
+                    child: Text("Error loading notifications."),
+                  );
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -146,7 +143,10 @@ class NotificationTile extends StatelessWidget {
       onTap: () async {
         // อัปเดตสถานะเป็น "อ่านแล้ว"
         if (!notification.isRead) {
-          await userService.markNotificationAsRead(currentUserId, notification.id);
+          await userService.markNotificationAsRead(
+            currentUserId,
+            notification.id,
+          );
         }
 
         if (!context.mounted) return;
@@ -164,11 +164,13 @@ class NotificationTile extends StatelessWidget {
               ),
             );
           }
-        } else if (notification.productId != null && notification.productId!.isNotEmpty) {
+        } else if (notification.productId != null &&
+            notification.productId!.isNotEmpty) {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ProductDetailsPage(productId: notification.productId!),
+              builder: (context) =>
+                  ProductDetailsPage(productId: notification.productId!),
             ),
           );
         }
@@ -203,8 +205,12 @@ class NotificationTile extends StatelessWidget {
                   Text(
                     timeAgo,
                     style: TextStyle(
-                      color: notification.isRead ? Colors.grey[600] : const Color(0xFF1877F2),
-                      fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                      color: notification.isRead
+                          ? Colors.grey[600]
+                          : const Color(0xFF1877F2),
+                      fontWeight: notification.isRead
+                          ? FontWeight.normal
+                          : FontWeight.bold,
                       fontSize: 13,
                     ),
                   ),
