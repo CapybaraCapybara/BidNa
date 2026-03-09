@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+// Widgets & Pages
 import 'package:bidna/widgets/product_card.dart';
 import 'package:bidna/pages/product_details_page.dart';
 import 'package:bidna/widgets/custom_app_bar.dart';
-// 🔴 Import Model
+
+// Models & Services (B4)
 import 'package:bidna/models/product_model.dart';
+import 'package:bidna/services/product_service.dart';
 
 class MyBidPage extends StatefulWidget {
   const MyBidPage({super.key});
@@ -16,9 +19,11 @@ class MyBidPage extends StatefulWidget {
 
 class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
-  String _bidFilter = 'All'; 
-  String _listingFilter = 'All'; 
+  final ProductService _productService = ProductService(); // B4: เรียกใช้ Service
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
+
+  String _bidFilter = 'All';
+  String _listingFilter = 'All';
 
   @override
   void initState() {
@@ -32,15 +37,47 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  // 🔴 เปลี่ยนมาเช็คจาก ProductModel โดยตรง
-  bool _isAuctionEnded(ProductModel product) {
-    if (product.status.toLowerCase() == 'closed' || product.status.toLowerCase() == 'close') return true;
-    if (product.endTime.isBefore(DateTime.now())) return true;
-    return false;
+  // B3: แยก Logic การจัดกลุ่มข้อมูลออกจาก build method เพื่อไม่ให้ build ทำงานหนัก
+  Map<String, List<ProductModel>> _categorizeBids(List<ProductModel> products) {
+    final Map<String, List<ProductModel>> categorized = {
+      'ongoingLeading': [], 'ongoingOutbid': [], 'endedWon': [], 'endedLost': []
+    };
+
+    if (_currentUser == null) return categorized;
+
+    for (var product in products) {
+      bool isEnded = _productService.isAuctionEnded(product);
+      bool isLeading = product.highestBidderUid == _currentUser!.uid;
+
+      if (!isEnded) {
+        if (isLeading) categorized['ongoingLeading']!.add(product);
+        else categorized['ongoingOutbid']!.add(product);
+      } else {
+        if (isLeading) categorized['endedWon']!.add(product);
+        else categorized['endedLost']!.add(product);
+      }
+    }
+    return categorized;
+  }
+
+  Map<String, List<ProductModel>> _categorizeListings(List<ProductModel> products) {
+    final Map<String, List<ProductModel>> categorized = {'ongoing': [], 'ended': []};
+    for (var product in products) {
+      if (_productService.isAuctionEnded(product)) {
+        categorized['ended']!.add(product);
+      } else {
+        categorized['ongoing']!.add(product);
+      }
+    }
+    return categorized;
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return const Scaffold(body: Center(child: Text("Please login")));
+    }
+
     return Scaffold(
       backgroundColor: const Color.fromRGBO(238, 237, 237, 1),
       appBar: CustomAppBar(
@@ -50,68 +87,35 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           unselectedLabelColor: Colors.grey,
           indicatorColor: const Color(0xFF6347EB),
           indicatorWeight: 3,
-          tabs: const [
-            Tab(text: "My Bids"),
-            Tab(text: "My Listings"),
-          ],
+          tabs: const [Tab(text: "My Bids"), Tab(text: "My Listings")],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildBidsTab(),
-          _buildListingsTab(),
-        ],
+        children: [_buildBidsTab(), _buildListingsTab()],
       ),
     );
   }
 
-  // ==========================================
-  // แท็บ 1: รายการที่ฉันประมูล (My Bids)
-  // ==========================================
   Widget _buildBidsTab() {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text("Please login"));
-
     return Column(
       children: [
-        _buildFilterChips(
+        FilterChipGroup( // B2: ใช้ Widget ที่แยกออกไป
           currentFilter: _bidFilter,
           onSelected: (val) => setState(() => _bidFilter = val),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('Products')
-                .where('bidders', arrayContains: user.uid)
-                .snapshots(),
+          child: StreamBuilder<List<ProductModel>>(
+            stream: _productService.getMyBidsStream(_currentUser!.uid),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              // B5: Error Handling
+              if (snapshot.hasError) return const Center(child: Text('Something went wrong.'));
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text("You haven't bid on any products yet.", style: TextStyle(color: Colors.grey)));
               }
 
-              // 🔴 แปลงเป็น List<ProductModel>
-              List<ProductModel> ongoingLeading = [];
-              List<ProductModel> ongoingOutbid = [];
-              List<ProductModel> endedWon = [];
-              List<ProductModel> endedLost = [];
-
-              for (var doc in snapshot.data!.docs) {
-                ProductModel product = ProductModel.fromDoc(doc);
-                bool isEnded = _isAuctionEnded(product);
-                bool isLeading = product.highestBidderUid == user.uid;
-
-                if (!isEnded) {
-                  if (isLeading) ongoingLeading.add(product);
-                  else ongoingOutbid.add(product);
-                } else {
-                  if (isLeading) endedWon.add(product);
-                  else endedLost.add(product);
-                }
-              }
+              final categorized = _categorizeBids(snapshot.data!);
 
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -119,12 +123,16 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_bidFilter == 'All' || _bidFilter == 'Ongoing') ...[
-                      if (ongoingLeading.isNotEmpty) _buildSection("👑 Leading", Colors.green.shade600, ongoingLeading),
-                      if (ongoingOutbid.isNotEmpty) _buildSection("⚠️ Outbid", Colors.orange.shade700, ongoingOutbid),
+                      if (categorized['ongoingLeading']!.isNotEmpty)
+                        ProductGridSection(title: "👑 Leading", color: Colors.green.shade600, products: categorized['ongoingLeading']!),
+                      if (categorized['ongoingOutbid']!.isNotEmpty)
+                        ProductGridSection(title: "⚠️ Outbid", color: Colors.orange.shade700, products: categorized['ongoingOutbid']!),
                     ],
                     if (_bidFilter == 'All' || _bidFilter == 'Ended') ...[
-                      if (endedWon.isNotEmpty) _buildSection("🏆 Won", const Color(0xFF6347EB), endedWon),
-                      if (endedLost.isNotEmpty) _buildSection("❌ Lost", Colors.grey.shade600, endedLost),
+                      if (categorized['endedWon']!.isNotEmpty)
+                        ProductGridSection(title: "🏆 Won", color: const Color(0xFF6347EB), products: categorized['endedWon']!),
+                      if (categorized['endedLost']!.isNotEmpty)
+                        ProductGridSection(title: "❌ Lost", color: Colors.grey.shade600, products: categorized['endedLost']!),
                     ],
                     const SizedBox(height: 30),
                   ],
@@ -137,44 +145,24 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
     );
   }
 
-  // ==========================================
-  // แท็บ 2: สินค้าที่ฉันลงขาย (My Listings)
-  // ==========================================
   Widget _buildListingsTab() {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text("Please login"));
-
     return Column(
       children: [
-        _buildFilterChips(
+        FilterChipGroup(
           currentFilter: _listingFilter,
           onSelected: (val) => setState(() => _listingFilter = val),
         ),
         Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('Products')
-                .where('sellerUid', isEqualTo: user.uid)
-                .snapshots(),
+          child: StreamBuilder<List<ProductModel>>(
+            stream: _productService.getMyListingsStream(_currentUser!.uid),
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              if (snapshot.hasError) return const Center(child: Text('Something went wrong.'));
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text("You don't have any listings yet.", style: TextStyle(color: Colors.grey)));
               }
 
-              List<ProductModel> ongoingListings = [];
-              List<ProductModel> endedListings = [];
-
-              for (var doc in snapshot.data!.docs) {
-                ProductModel product = ProductModel.fromDoc(doc);
-                if (_isAuctionEnded(product)) {
-                  endedListings.add(product);
-                } else {
-                  ongoingListings.add(product);
-                }
-              }
+              final categorized = _categorizeListings(snapshot.data!);
 
               return SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -182,10 +170,12 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_listingFilter == 'All' || _listingFilter == 'Ongoing') ...[
-                      if (ongoingListings.isNotEmpty) _buildSection("🟢 Ongoing", Colors.green.shade600, ongoingListings),
+                      if (categorized['ongoing']!.isNotEmpty)
+                        ProductGridSection(title: "🟢 Ongoing", color: Colors.green.shade600, products: categorized['ongoing']!),
                     ],
                     if (_listingFilter == 'All' || _listingFilter == 'Ended') ...[
-                      if (endedListings.isNotEmpty) _buildSection("🔴 Ended", Colors.redAccent, endedListings),
+                      if (categorized['ended']!.isNotEmpty)
+                        ProductGridSection(title: "🔴 Ended", color: Colors.redAccent, products: categorized['ended']!),
                     ],
                     const SizedBox(height: 30),
                   ],
@@ -197,8 +187,20 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
       ],
     );
   }
+}
 
-  Widget _buildFilterChips({required String currentFilter, required Function(String) onSelected}) {
+// ======================================================================
+// B2: แยก Widgets ออกมาเป็นคลาสเพื่อให้โค้ด Clean (สามารถย้ายไปโฟลเดอร์ widgets/ ได้)
+// ======================================================================
+
+class FilterChipGroup extends StatelessWidget {
+  final String currentFilter;
+  final Function(String) onSelected;
+
+  const FilterChipGroup({super.key, required this.currentFilter, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
       width: double.infinity,
@@ -220,9 +222,17 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
       ),
     );
   }
+}
 
-  // 🔴 เปลี่ยนจากการรับ DocumentSnapshot มาเป็น ProductModel
-  Widget _buildSection(String title, Color color, List<ProductModel> productList) {
+class ProductGridSection extends StatelessWidget {
+  final String title;
+  final Color color;
+  final List<ProductModel> products;
+
+  const ProductGridSection({super.key, required this.title, required this.color, required this.products});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,12 +240,9 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
           child: Row(
             children: [
-              Text(
-                title,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
-              ),
+              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
               const Spacer(),
-              Text("${productList.length} items", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text("${products.length} items", style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
           ),
         ),
@@ -243,7 +250,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           padding: const EdgeInsets.symmetric(horizontal: 10),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: productList.length,
+          itemCount: products.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             childAspectRatio: 0.75,
@@ -251,9 +258,9 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
             mainAxisSpacing: 10,
           ),
           itemBuilder: (context, index) {
-            final product = productList[index];
+            final product = products[index];
             return ProductCard(
-              product: product, // 🔴 ใช้ ProductModel
+              product: product,
               onTap: () {
                 Navigator.push(
                   context,

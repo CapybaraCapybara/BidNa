@@ -1,17 +1,27 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image/image.dart' as img;
 import 'package:bidna/models/chat_model.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
   // สร้าง roomId จาก UID สองคน
   String getRoomId(String uid1, String uid2) {
     List<String> ids = [uid1, uid2];
     ids.sort();
     return ids.join('_');
+  }
+
+  // B4: ย้าย messages stream query ออกจาก UI
+  Stream<QuerySnapshot> getMessagesStream(String roomId) {
+    return _db
+        .collection('ChatRooms')
+        .doc(roomId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
   // B4: ย้าย image processing ออกจาก UI มาไว้ใน Service

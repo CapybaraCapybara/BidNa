@@ -1,7 +1,46 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+// 🟢 อย่าลืม Import ProductModel สำหรับใช้ในเมธอดใหม่
+import 'package:bidna/models/product_model.dart';
 
 class ProductService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // ==========================================
+  // 🟢 ส่วนที่เพิ่มใหม่สำหรับหน้า MyBidPage (ข้อ B4)
+  // ==========================================
+
+  // B4: ดึงข้อมูลรายการที่ฉันประมูล (แปลงเป็น List<ProductModel> ให้เลยตั้งแต่ดึงข้อมูล)
+  Stream<List<ProductModel>> getMyBidsStream(String userId) {
+    return _db
+        .collection('Products')
+        .where('bidders', arrayContains: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ProductModel.fromDoc(doc))
+            .toList());
+  }
+
+  // B4: ดึงข้อมูลสินค้าที่ฉันลงขาย
+  Stream<List<ProductModel>> getMyListingsStream(String userId) {
+    return _db
+        .collection('Products')
+        .where('sellerUid', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ProductModel.fromDoc(doc))
+            .toList());
+  }
+
+  // B4: Business Logic เช็คว่าประมูลจบหรือยัง (ดึง Logic ออกจาก UI)
+  bool isAuctionEnded(ProductModel product) {
+    if (product.status.toLowerCase() == 'closed' || product.status.toLowerCase() == 'close') return true;
+    if (product.endTime.isBefore(DateTime.now())) return true;
+    return false;
+  }
+
+  // ==========================================
+  // ⚪️ โค้ดเดิมของคุณ (ไม่ถูกปรับเปลี่ยนการทำงาน)
+  // ==========================================
 
   // สร้างรายการประมูลใหม่
   Future<void> createListing(Map<String, dynamic> productData) async {
