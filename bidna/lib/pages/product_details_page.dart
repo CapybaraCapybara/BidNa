@@ -156,7 +156,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         WinnerActionCard(
                           winningPrice: product.currentPrice,
                           onPayPressed: () {
-                            if (myUid == null) return;
 
                             // 🌟 แสดง Pop-up ยืนยันการชำระเงิน
                             showDialog(
@@ -514,7 +513,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
                           if (!isAlreadyReviewed) {
                             _reviewService.notifyWinnerToReview(
-                              winnerId: myUid!,
+                              winnerId: myUid,
                               productId: widget.productId,
                               productTitle: product.title,
                             );

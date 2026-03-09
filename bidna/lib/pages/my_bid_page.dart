@@ -47,7 +47,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
 
     for (var product in products) {
       bool isEnded = _productService.isAuctionEnded(product);
-      bool isLeading = product.highestBidderUid == _currentUser!.uid;
+      bool isLeading = product.highestBidderUid == _currentUser.uid;
 
       if (!isEnded) {
         if (isLeading) categorized['ongoingLeading']!.add(product);
