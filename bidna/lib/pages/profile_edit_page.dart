@@ -1,15 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:image/image.dart' as img;
-import 'package:bidna/pages/signup_page.dart';
+import 'package:bidna/pages/signup_page.dart'; // หรือ LoginScreen ตามที่คุณใช้งานจริง
 
-// 🔴 Import Service
+// 🔴 Import Services
 import 'package:bidna/services/user_service.dart';
+import 'package:bidna/services/auth_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -28,10 +25,9 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true; 
   bool _isSaving = false; 
 
-  final User? currentUser = FirebaseAuth.instance.currentUser;
-  
-  // 🔴 เรียกใช้ UserService
+  // 🔴 เรียกใช้ Service (B4)
   final UserService _userService = UserService();
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -40,13 +36,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadUserData() async {
-    if (currentUser == null) return;
+    // B4: เรียกผ่าน AuthService
+    final uid = _authService.getCurrentUserId();
+    if (uid == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(currentUser!.uid)
-          .get();
+      // B4: เรียกผ่าน UserService (ดึงข้อมูล)
+      final userDoc = await _userService.getUserData(uid);
 
       if (userDoc.exists) {
         final data = userDoc.data() as Map<String, dynamic>;
@@ -60,9 +59,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       debugPrint("Error loading user data: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -70,36 +67,27 @@ class _ProfilePageState extends State<ProfilePage> {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       File file = File(pickedFile.path);
-      String base64String = await _processImageToBase64(file);
+      // B4: เรียกผ่าน UserService (ประมวลผลรูป)
+      String base64String = await _userService.processImageToBase64(file);
       setState(() {
         _base64Image = base64String;
       });
     }
   }
 
-  Future<String> _processImageToBase64(File file) async {
-    Uint8List bytes = await file.readAsBytes();
-    img.Image? decoded = img.decodeImage(bytes);
-    if (decoded == null) return "";
-    
-    img.Image resized = img.copyResize(decoded, width: 300); 
-    List<int> compressed = img.encodeJpg(resized, quality: 70);
-    return base64Encode(compressed);
-  }
-
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    final currentUser = _authService.getCurrentUser();
     if (currentUser == null) return;
 
-    setState(() {
-      _isSaving = true;
-    });
+    setState(() => _isSaving = true);
 
     try {
-      // 🔴 ใช้ UserService แทน
+      // B4: เรียกผ่าน UserService (บันทึกข้อมูล)
       await _userService.updateProfile(
-        uid: currentUser!.uid,
-        email: currentUser!.email ?? '',
+        uid: currentUser.uid,
+        email: currentUser.email ?? '',
         displayName: _nameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
         bio: _bioController.text.trim(),
@@ -108,32 +96,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("อัปเดตโปรไฟล์สำเร็จ!"),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text("อัปเดตโปรไฟล์สำเร็จ!"), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("เกิดข้อผิดพลาด: $e"),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
+    // B4: เรียกผ่าน AuthService
+    await _authService.signOut();
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -156,7 +135,6 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // เปลี่ยน title เป็น Edit Profile
         title: const Text("Edit Profile", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -177,35 +155,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    GestureDetector(
+                    // B2: แยก Widget รูปโปรไฟล์
+                    ProfileAvatarPicker(
+                      base64Image: _base64Image,
                       onTap: _pickImage,
-                      child: Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _base64Image != null && _base64Image!.isNotEmpty
-                                ? MemoryImage(base64Decode(_base64Image!))
-                                : null,
-                            child: _base64Image == null || _base64Image!.isEmpty
-                                ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                                : null,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF6347EB),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          ),
-                        ],
-                      ),
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      currentUser?.email ?? "No Email",
+                      _authService.getCurrentUser()?.email ?? "No Email",
                       style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                     const SizedBox(height: 30),
@@ -227,6 +184,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       validator: (value) => value!.isEmpty ? "กรุณากรอกเบอร์โทรศัพท์" : null,
                     ),
                     const SizedBox(height: 16),
+                    
+                    // About Me Field
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -256,6 +215,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     const SizedBox(height: 40),
 
+                    // Save Button
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -317,6 +277,50 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ======================================================================
+// B2: แยก Widget การเลือกรูปโปรไฟล์ออกมาเพื่อความสะอาดของโค้ด
+// ======================================================================
+class ProfileAvatarPicker extends StatelessWidget {
+  final String? base64Image;
+  final VoidCallback onTap;
+
+  const ProfileAvatarPicker({
+    super.key,
+    required this.base64Image,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          CircleAvatar(
+            radius: 60,
+            backgroundColor: Colors.grey.shade200,
+            backgroundImage: base64Image != null && base64Image!.isNotEmpty
+                ? MemoryImage(base64Decode(base64Image!))
+                : null,
+            child: base64Image == null || base64Image!.isEmpty
+                ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                : null,
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFF6347EB),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,10 +1,15 @@
+// 🔴 เพิ่ม Import สำหรับจัดการรูปภาพ
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:image/image.dart' as img;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 // 🔴 Import NotificationModel สำหรับใช้ใน getNotificationsStream
 import 'package:bidna/models/notification_model.dart';
 
 class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
 
   Future<DocumentSnapshot> getUserData(String uid) {
     return _db.collection('Users').doc(uid).get();
@@ -13,6 +18,22 @@ class UserService {
   // 2. ดึงข้อมูล User แบบ Real-time (Stream) สำหรับดักฟังดาว/รีวิว
   Stream<DocumentSnapshot> getUserStream(String uid) {
     return _db.collection('Users').doc(uid).snapshots();
+  }
+
+  // ==========================================
+  // 🟢 ส่วนที่เพิ่มใหม่สำหรับจัดการรูปโปรไฟล์ (ข้อ B4)
+  // ==========================================
+
+  // B4: ย้าย Logic การบีบอัดและแปลงรูปภาพมาไว้ที่ Service เพื่อไม่ให้ UI ทำงานหนัก
+  Future<String> processImageToBase64(File file) async {
+    Uint8List bytes = await file.readAsBytes();
+    img.Image? decoded = img.decodeImage(bytes);
+    if (decoded == null) return "";
+    
+    // ย่อขนาดรูปให้กว้าง 300px และบีบอัดคุณภาพเหลือ 70% เพื่อประหยัดพื้นที่ Firestore
+    img.Image resized = img.copyResize(decoded, width: 300); 
+    List<int> compressed = img.encodeJpg(resized, quality: 70);
+    return base64Encode(compressed);
   }
 
   // ==========================================
@@ -35,7 +56,6 @@ class UserService {
   // ==========================================
   // ⚪️ โค้ดเดิมของคุณ (ไม่ถูกปรับเปลี่ยนการทำงาน)
   // ==========================================
-
 
   // อัปเดตข้อมูลโปรไฟล์
   Future<void> updateProfile({
