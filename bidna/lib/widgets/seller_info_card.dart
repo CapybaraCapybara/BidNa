@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/pages/chat_page.dart';
 import 'package:bidna/pages/user_profile_view_page.dart';
-import 'package:bidna/services/product_service.dart';
 import 'package:bidna/services/user_service.dart';
 
 class SellerInfoCard extends StatelessWidget {

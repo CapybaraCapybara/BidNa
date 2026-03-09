@@ -131,7 +131,7 @@ class ProductService {
     // 1. ดึงข้อมูล User มาเช็คยอด Coupon
     final userDoc = await _db.collection('Users').doc(winnerUid).get();
     final double currentBalance =
-        (userDoc.data() as Map<String, dynamic>?)?['couponBalance']
+        (userDoc.data())?['couponBalance']
             ?.toDouble() ??
         0;
 
