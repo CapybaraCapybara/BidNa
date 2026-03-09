@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bidna/pages/explore_page.dart';
 import 'create_list_page.dart';
-import 'profile_edit_page.dart';
 import 'my_bid_page.dart';
 import 'chat_list_page.dart';
 

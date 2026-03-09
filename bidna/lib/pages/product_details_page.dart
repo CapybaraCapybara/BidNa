@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:bidna/widgets/bidPriceSelector.dart';
 import 'package:bidna/widgets/countDownTimerCard.dart';
 import 'package:bidna/widgets/auction_result_cards.dart';
-import 'package:bidna/pages/chat_page.dart';
 import 'package:bidna/pages/user_profile_view_page.dart';
 import 'package:bidna/pages/write_review_page.dart';
 import 'package:bidna/widgets/seller_info_card.dart';
@@ -59,7 +58,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
           // ถ้าไม่มี UID เจ้าของ ให้ Fallback
           String sellerUid = product.sellerUid;
-          String fallbackSellerName = "Unknown Seller";
 
           DateTime now = DateTime.now();
           bool isAuctionEnded = now.isAfter(product.endTime);
