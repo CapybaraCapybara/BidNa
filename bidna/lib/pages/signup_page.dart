@@ -173,50 +173,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Social Buttons
-                        Row(
-                          children: [
-                            SocialButton(
-                              icon: const Icon(
-                                Icons.g_mobiledata,
-                                size: 30,
-                                color: Colors.black,
-                              ),
-                              onTap: () {},
-                            ),
-                            const SizedBox(width: 16),
-                            SocialButton(
-                              icon: const Icon(
-                                Icons.apple,
-                                size: 30,
-                                color: Colors.black,
-                              ),
-                              onTap: () {},
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Divider
-                        const Row(
-                          children: [
-                            Expanded(child: Divider(color: Color(0xFFDFE6E9))),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                "OR CONTINUE WITH EMAIL",
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFFA4B0BE),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Divider(color: Color(0xFFDFE6E9))),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
                         // Inputs
                         CustomTextField(
                           label: "Email Address",
@@ -281,25 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
 
-                        // Forgot Password
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {},
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(50, 30),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: const Text(
-                              "Forgot password?",
-                              style: TextStyle(
-                                color: Color(0xFF6C5CE7),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 20),
 
                         // Sign In / Sign Up Button

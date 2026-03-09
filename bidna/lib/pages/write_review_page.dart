@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 // Models & Services
 import 'package:bidna/services/review_service.dart';
+import 'package:bidna/services/auth_service.dart';
 
 // Widgets & Utils (B4: แยก UI และ logic ออกจาก page)
 import 'package:bidna/widgets/star_rating_widget.dart';
@@ -27,6 +28,7 @@ class WriteReviewPage extends StatefulWidget {
 class _WriteReviewPageState extends State<WriteReviewPage> {
   final _commentController = TextEditingController();
   final _reviewService = ReviewService();
+  final AuthService _authService = AuthService();
 
   double _selectedRating = 5.0;
   bool _isSubmitting = false;
@@ -52,7 +54,7 @@ class _WriteReviewPageState extends State<WriteReviewPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      final user = _authService.getCurrentUser();
       if (user == null) throw Exception('User not logged in');
 
       // B4: ให้ Service จัดการ logic ดึงข้อมูล reviewer และสร้าง ReviewModel

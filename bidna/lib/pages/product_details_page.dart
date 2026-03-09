@@ -12,6 +12,7 @@ import 'package:bidna/pages/user_profile_view_page.dart';
 import 'package:bidna/pages/write_review_page.dart';
 import 'package:bidna/widgets/seller_info_card.dart';
 import 'package:bidna/widgets/bid_history_item.dart';
+import 'package:bidna/services/user_service.dart';
 
 // 🔴 Import Models & Services
 import 'package:bidna/models/product_model.dart';
@@ -32,6 +33,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final ProductService _productService =
       ProductService(); // 🔴 เรียกใช้ Service สำหรับการประมูล
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +151,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           },
                         )
                       // กรณีที่ 3: สถานะเป็น 'PAID' แต่เราไม่ใช่ผู้ชนะ (คนอื่นมองเห็น)
-                      else if (productStatus == 'PAID' || (isAuctionEnded && !amIWinner))
+                      else if (productStatus == 'PAID' ||
+                          (isAuctionEnded && !amIWinner))
                         const EndedActionCard()
                       else if (isAuctionEnded && amIWinner)
                         WinnerActionCard(
@@ -365,7 +368,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       SellerInfoCard(
                         sellerUid: sellerUid,
                         currentUserUid: myUid,
-                        productService: _productService,
+                        userService: _userService,
                       ),
 
                       const SizedBox(height: 20),
@@ -423,29 +426,41 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: bids.length,
                                 itemBuilder: (context, index) {
-                                  var bidData = bids[index].data() as Map<String, dynamic>;
+                                  var bidData =
+                                      bids[index].data()
+                                          as Map<String, dynamic>;
                                   bool isHighest = index == 0;
                                   String bidderUid = bidData['userId'] ?? "";
-                                  double amount = (bidData['price'] ?? 0).toDouble();
-                                  Timestamp? ts = bidData['timestamp'] as Timestamp?;
+                                  double amount = (bidData['price'] ?? 0)
+                                      .toDouble();
+                                  Timestamp? ts =
+                                      bidData['timestamp'] as Timestamp?;
                                   String timeAgo = ts != null
-                                      ? DateFormat('dd MMM, HH:mm').format(ts.toDate())
+                                      ? DateFormat(
+                                          'dd MMM, HH:mm',
+                                        ).format(ts.toDate())
                                       : "Just now";
 
                                   return FutureBuilder<DocumentSnapshot>(
                                     future: bidderUid.isNotEmpty
-                                        ? _productService.getUserData(bidderUid) 
+                                        ? _productService.getUserData(bidderUid)
                                         : null,
                                     builder: (context, userSnapshot) {
                                       String displayName = "Anonymous";
                                       String? profileImageBase64;
 
-                                      if (userSnapshot.connectionState == ConnectionState.done &&
+                                      if (userSnapshot.connectionState ==
+                                              ConnectionState.done &&
                                           userSnapshot.hasData &&
                                           userSnapshot.data!.exists) {
-                                        var userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                                        displayName = userData['displayName'] ?? "Anonymous";
-                                        profileImageBase64 = userData['profileImage'];
+                                        var userData =
+                                            userSnapshot.data!.data()
+                                                as Map<String, dynamic>;
+                                        displayName =
+                                            userData['displayName'] ??
+                                            "Anonymous";
+                                        profileImageBase64 =
+                                            userData['profileImage'];
                                       }
 
                                       // 🌟 ลบโค้ดวาด UI ของเดิมทิ้ง แล้วเรียกใช้ Widget ตัวนี้แทน!
@@ -456,9 +471,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                             Navigator.push(
                                               context,
                                               MaterialPageRoute(
-                                                builder: (_) => UserProfileViewPage(
-                                                  targetUserId: bidderUid,
-                                                ),
+                                                builder: (_) =>
+                                                    UserProfileViewPage(
+                                                      targetUserId: bidderUid,
+                                                    ),
                                               ),
                                             );
                                           }
@@ -467,7 +483,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                                           username: displayName,
                                           timeAgo: timeAgo,
                                           amount: amount,
-                                          profileImageBase64: profileImageBase64,
+                                          profileImageBase64:
+                                              profileImageBase64,
                                           isHighest: isHighest,
                                         ),
                                       );

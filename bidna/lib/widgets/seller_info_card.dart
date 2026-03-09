@@ -4,17 +4,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:bidna/pages/chat_page.dart';
 import 'package:bidna/pages/user_profile_view_page.dart';
 import 'package:bidna/services/product_service.dart';
+import 'package:bidna/services/user_service.dart';
 
 class SellerInfoCard extends StatelessWidget {
   final String sellerUid;
   final String? currentUserUid;
-  final ProductService productService;
+  final UserService userService;
 
   const SellerInfoCard({
     super.key,
     required this.sellerUid,
     required this.currentUserUid,
-    required this.productService,
+    required this.userService
   });
 
   @override
@@ -25,7 +26,7 @@ class SellerInfoCard extends StatelessWidget {
 
     // เปลี่ยนมาใช้ StreamBuilder เพื่อให้ข้อมูลดาว/รีวิว อัปเดตแบบ Real-time
     return StreamBuilder<DocumentSnapshot>(
-      stream: productService.getUserStream(
+      stream: userService.getUserStream(
         sellerUid,
       ), // เรียกใช้ Stream แทน Future
       builder: (context, userSnapshot) {
