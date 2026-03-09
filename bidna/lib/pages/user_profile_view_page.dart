@@ -142,6 +142,7 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 20),
+      width: double.infinity,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

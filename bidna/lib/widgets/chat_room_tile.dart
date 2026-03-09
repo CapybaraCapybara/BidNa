@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:bidna/models/chat_model.dart';
 import 'package:bidna/pages/chat_page.dart';
+import 'package:bidna/services/user_service.dart';
 
 /// Widget แสดง 1 แถวใน Chat List
 class ChatRoomTile extends StatelessWidget {
@@ -25,8 +28,12 @@ class ChatRoomTile extends StatelessWidget {
 
     if (peerId.isEmpty) return const SizedBox.shrink();
 
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: room.fetchPeerData(peerId),
+    final UserService userService = UserService();
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: userService.getUserStream(
+        peerId,
+      ), // ฟังการเปลี่ยนแปลงของเพื่อนตลอดเวลา
       builder: (context, snapshot) {
         // B5: รอข้อมูลโหลด
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -37,16 +44,22 @@ class ChatRoomTile extends StatelessWidget {
         }
 
         // B5: error handling — ถ้าดึงข้อมูลไม่ได้ ไม่ crash
-        if (!snapshot.hasData || snapshot.data == null) {
+        if (!snapshot.hasData || !snapshot.data!.exists) {
           return const SizedBox.shrink();
         }
 
-        final peerName = snapshot.data!['displayName'] ?? 'Unknown';
-        final String? peerImage = snapshot.data!['profileImage'];
+        // 🌟 4. แปลงข้อมูลแบบ Map
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        if (data == null) return const SizedBox.shrink();
+
+        final peerName = data['displayName'] ?? 'Unknown';
+        final String? peerImage = data['profileImage'];
 
         return ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 8,
+          ),
           tileColor: Colors.white,
           leading: CircleAvatar(
             radius: 25,
