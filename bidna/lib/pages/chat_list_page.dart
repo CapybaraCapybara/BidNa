@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 // Models & Services
 import 'package:bidna/models/chat_model.dart';
 import 'package:bidna/services/chat_service.dart';
+import 'package:bidna/services/auth_service.dart';
 
 // Widgets (B4: แยก UI ออกจาก page)
 import 'package:bidna/widgets/chat_room_tile.dart';
@@ -19,7 +20,8 @@ class ChatListPage extends StatefulWidget {
 // B3: เปลี่ยนเป็น StatefulWidget เพื่อ init stream ครั้งเดียวใน initState
 class _ChatListPageState extends State<ChatListPage> {
   final ChatService _chatService = ChatService();
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
+  final AuthService _authService = AuthService();
+  User? _currentUser;
 
   // B3: เตรียม stream ล่วงหน้า ไม่สร้างใหม่ทุกรอบที่ build
   late final Stream<List<ChatRoomModel>> _chatRoomsStream;
@@ -27,19 +29,18 @@ class _ChatListPageState extends State<ChatListPage> {
   @override
   void initState() {
     super.initState();
+    _currentUser = _authService.getCurrentUser();
+
     if (_currentUser != null) {
       // B4: ให้ Service จัดการ query + sort แทน UI
-      _chatRoomsStream =
-          _chatService.getUserChatRoomsStream(_currentUser!.uid);
+      _chatRoomsStream = _chatService.getUserChatRoomsStream(_currentUser!.uid);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please login')),
-      );
+      return const Scaffold(body: Center(child: Text('Please login')));
     }
 
     return Scaffold(

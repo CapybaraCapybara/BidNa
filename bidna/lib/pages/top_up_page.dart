@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:bidna/services/top_up_service.dart';
 import 'package:bidna/pages/withdraw_page.dart';
+import 'package:bidna/services/auth_service.dart';
 
 class TopUpScreen extends StatefulWidget {
   const TopUpScreen({super.key});
@@ -13,13 +14,15 @@ class TopUpScreen extends StatefulWidget {
 
 class _TopUpScreenState extends State<TopUpScreen> {
   // ลิสต์จำนวนเงินที่เราจะให้ผู้ใช้เติมได้
+  final AuthService _authService = AuthService();
   final List<int> _topUpAmounts = [100, 500, 1000, 3000, 5000, 10000];
   final TopUpService _topUpService = TopUpService(); // 👇 เรียกใช้งาน Service
   bool _isLoading = false;
 
   // ฟังก์ชันจำลองการเติมเงินผ่าน Service
   Future<void> _processTopUp(int amount) async {
-    final user = FirebaseAuth.instance.currentUser;
+    User? user = _authService.getCurrentUser();
+
     if (user == null) return;
 
     setState(() => _isLoading = true);
