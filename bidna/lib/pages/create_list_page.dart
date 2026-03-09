@@ -111,7 +111,7 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
         'sellerUid': currentUser?.uid,  
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("สร้างรายการสำเร็จ!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Created listing successfully!")));
       _resetForm();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
