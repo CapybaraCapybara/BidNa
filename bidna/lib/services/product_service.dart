@@ -129,4 +129,23 @@ class ProductService {
 
     await batch.commit();
   }
+
+  // 1. ดึง Stream ของสินค้าหน้า Detail
+  Stream<DocumentSnapshot> getProductStream(String productId) {
+    return _db.collection('Products').doc(productId).snapshots();
+  }
+
+  // 2. ดึง Stream ประวัติการประมูล
+  Stream<QuerySnapshot> getBidHistoryStream(String productId) {
+    return _db.collection('Products')
+        .doc(productId)
+        .collection('bids')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  // 3. ดึงข้อมูล User (ใช้ดึงได้ทั้งข้อมูลคนขาย และข้อมูลคนประมูล)
+  Future<DocumentSnapshot> getUserData(String uid) {
+    return _db.collection('Users').doc(uid).get();
+  }
 }
