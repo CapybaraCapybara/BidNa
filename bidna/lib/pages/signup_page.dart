@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   bool _isLoading = false;
 
   // [เพิ่ม] เรียกใช้งาน AuthService
@@ -39,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       isSignIn: _isSignIn,
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
+      username: _isSignIn ? null : _usernameController.text.trim(),
     );
 
     if (mounted) {
@@ -71,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -101,28 +104,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6C5CE7),
-                        borderRadius: BorderRadius.circular(4),
+                RichText(
+                  text: const TextSpan(
+                    children: [
+                      TextSpan(
+                        text: "Bid",
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF6C5CE7),
+                          letterSpacing: -1,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      "Na",
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF2D3436),
-                        letterSpacing: -1,
+                      TextSpan(
+                        text: "Na",
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF2D3436),
+                          letterSpacing: -1,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -233,6 +237,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 16),
+                        // แสดงช่อง Username เฉพาะตอน Sign Up
+                        if (!_isSignIn) ...[
+                          CustomTextField(
+                            label: "Username",
+                            hint: "ชื่อที่ต้องการแสดงในระบบ",
+                            prefixIcon: Icons.person_outline,
+                            controller: _usernameController,
+                            validator: (value) {
+                              if (!_isSignIn) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'กรุณากรอก Username';
+                                }
+                                if (value.trim().length < 3) {
+                                  return 'Username ต้องมีอย่างน้อย 3 ตัวอักษร';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         CustomTextField(
                           label: "Password",
                           hint: "••••••••",
