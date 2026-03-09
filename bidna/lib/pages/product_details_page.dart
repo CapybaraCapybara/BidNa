@@ -15,6 +15,7 @@ import 'package:bidna/pages/write_review_page.dart';
 import 'package:bidna/models/product_model.dart';
 import 'package:bidna/services/product_service.dart';
 import 'package:bidna/services/review_service.dart';
+import 'package:bidna/services/auth_service.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final String productId;
@@ -28,6 +29,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final ReviewService _reviewService = ReviewService();
   final ProductService _productService =
       ProductService(); // 🔴 เรียกใช้ Service สำหรับการประมูล
+  final AuthService _authService = AuthService();
 
   @override
   Widget build(BuildContext context) {
@@ -48,8 +50,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           // 🔴 แปลงเป็น ProductModel
           ProductModel product = ProductModel.fromDoc(snapshot.data!);
 
-          User? currentUser = FirebaseAuth.instance.currentUser;
-          String? myUid = currentUser?.uid;
+          User? currentUser = _authService.getCurrentUser();
+          String? myUid = _authService.getCurrentUserId();
 
           // ถ้าไม่มี UID เจ้าของ ให้ Fallback
           String sellerUid = product.sellerUid;

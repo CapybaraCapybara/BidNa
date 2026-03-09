@@ -5,6 +5,17 @@ import '../models/auth_result_model.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // 1. ฟังก์ชันดึงข้อมูล User ปัจจุบันทั้งหมด
+  User? getCurrentUser() {
+    return _auth.currentUser;
+  }
+
+  // 2. ฟังก์ชันดึงแค่ UID ปัจจุบัน (เขียนเพิ่มไว้ จะได้เรียกใช้ง่ายๆ ครับ)
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
+
   Future<AuthResultModel> authenticateUser({
     required bool isSignIn,
     required String email,
