@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:bidna/services/withdraw_service.dart'; 
+import 'package:bidna/services/withdraw_service.dart';
+import 'package:bidna/services/auth_service.dart';
 
 class WithdrawPage extends StatefulWidget {
   const WithdrawPage({super.key});
@@ -13,7 +14,9 @@ class WithdrawPage extends StatefulWidget {
 
 class _WithdrawPageState extends State<WithdrawPage> {
   final TextEditingController _amountController = TextEditingController();
-  final WithdrawService _withdrawService = WithdrawService(); // เรียกใช้งาน Service
+  final WithdrawService _withdrawService =
+      WithdrawService(); // เรียกใช้งาน Service
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
 
   @override
@@ -36,7 +39,7 @@ class _WithdrawPageState extends State<WithdrawPage> {
 
   // ตรวจสอบข้อมูลและดึง Pop-up ยืนยัน
   Future<void> _validateAndConfirm() async {
-    final user = FirebaseAuth.instance.currentUser;
+    User? user = _authService.getCurrentUser();
     if (user == null) return;
 
     final String input = _amountController.text.trim();
@@ -60,13 +63,15 @@ class _WithdrawPageState extends State<WithdrawPage> {
       setState(() => _isLoading = false);
 
       if (currentBalance < withdrawAmount) {
-        _showSnackBar('ยอด Coupon ของคุณไม่เพียงพอ (มีอยู่ ${NumberFormat('#,###').format(currentBalance)})', Colors.red);
+        _showSnackBar(
+          'ยอด Coupon ของคุณไม่เพียงพอ (มีอยู่ ${NumberFormat('#,###').format(currentBalance)})',
+          Colors.red,
+        );
         return;
       }
 
       // ถ้าเงินพอ ให้แสดงกล่องยืนยัน
       _showConfirmationDialog(withdrawAmount, user.uid);
-
     } catch (e) {
       setState(() => _isLoading = false);
       _showSnackBar('เกิดข้อผิดพลาดในการตรวจสอบยอดเงิน', Colors.red);
@@ -80,12 +85,17 @@ class _WithdrawPageState extends State<WithdrawPage> {
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
               Icon(Icons.info_outline, color: Color(0xFF6347EB)),
               SizedBox(width: 8),
-              Text('ยืนยันการถอนเงิน', style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                'ยืนยันการถอนเงิน',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           content: Text(
@@ -105,9 +115,14 @@ class _WithdrawPageState extends State<WithdrawPage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6347EB),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('ยืนยัน', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'ยืนยัน',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -141,7 +156,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text("Withdraw", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Withdraw",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
@@ -174,23 +192,43 @@ class _WithdrawPageState extends State<WithdrawPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("ยอด Coupon คงเหลือ", style: TextStyle(color: Colors.white70, fontSize: 16)),
+                        const Text(
+                          "ยอด Coupon คงเหลือ",
+                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                        ),
                         const SizedBox(height: 8),
                         // 👇 เรียกใช้ Stream จาก Service
                         StreamBuilder<DocumentSnapshot>(
-                          stream: _withdrawService.getUserBalanceStream(user.uid),
+                          stream: _withdrawService.getUserBalanceStream(
+                            user.uid,
+                          ),
                           builder: (context, snapshot) {
                             int balance = 0;
                             if (snapshot.hasData && snapshot.data!.exists) {
-                              balance = (snapshot.data!.data() as Map<String, dynamic>)['couponBalance']?.toInt() ?? 0;
+                              balance =
+                                  (snapshot.data!.data()
+                                          as Map<
+                                            String,
+                                            dynamic
+                                          >)['couponBalance']
+                                      ?.toInt() ??
+                                  0;
                             }
                             return Row(
                               children: [
-                                const Icon(Icons.local_activity, color: Colors.amber, size: 32),
+                                const Icon(
+                                  Icons.local_activity,
+                                  color: Colors.amber,
+                                  size: 32,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   NumberFormat('#,###').format(balance),
-                                  style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             );
@@ -201,7 +239,10 @@ class _WithdrawPageState extends State<WithdrawPage> {
                   ),
                   const SizedBox(height: 30),
 
-                  const Text("ระบุจำนวนที่ต้องการถอน", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "ระบุจำนวนที่ต้องการถอน",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 8),
                   const Text(
                     "ระบบจะทำการโอนเงินเข้าบัญชีธนาคารที่คุณผูกไว้",
@@ -212,10 +253,17 @@ class _WithdrawPageState extends State<WithdrawPage> {
                   TextField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF6347EB)),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6347EB),
+                    ),
                     decoration: InputDecoration(
                       hintText: "0",
-                      prefixIcon: const Icon(Icons.money_off, color: Color(0xFF6347EB)),
+                      prefixIcon: const Icon(
+                        Icons.money_off,
+                        color: Color(0xFF6347EB),
+                      ),
                       suffixText: "Coupons",
                       filled: true,
                       fillColor: Colors.grey.shade50,
@@ -229,28 +277,37 @@ class _WithdrawPageState extends State<WithdrawPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: Color(0xFF6347EB), width: 2),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF6347EB),
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
-                  
+
                   const Spacer(),
 
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _validateAndConfirm, 
+                      onPressed: _isLoading ? null : _validateAndConfirm,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6347EB),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         elevation: 0,
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               "ดำเนินการถอนเงิน",
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                     ),
                   ),
