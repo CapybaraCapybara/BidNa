@@ -153,4 +153,11 @@ class ProductService {
   Stream<DocumentSnapshot> getUserStream(String uid) {
     return _db.collection('Users').doc(uid).snapshots();
   }
+
+  Stream<QuerySnapshot> getSoldItemsStream(String sellerUid) {
+    return _db.collection('Products')
+        .where('sellerUid', isEqualTo: sellerUid)
+        .where('status', isEqualTo: 'closed')
+        .snapshots();
+  }
 }

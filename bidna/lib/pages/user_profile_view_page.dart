@@ -6,6 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bidna/models/review_model.dart';
 import 'package:bidna/models/product_model.dart';
 import 'package:bidna/services/review_service.dart';
+import 'package:bidna/services/auth_service.dart';
+import 'package:bidna/services/user_service.dart';
+import 'package:bidna/services/product_service.dart';
 
 // Pages
 import 'package:bidna/pages/profile_edit_page.dart';
@@ -35,8 +38,11 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
   double _rating = 0.0;
   int _ratingCount = 0;
 
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
   final ReviewService _reviewService = ReviewService();
+  final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
+  final ProductService _productService = ProductService();
+  User? _currentUser;
 
   // B3: เตรียม Stream ไว้ล่วงหน้า ไม่สร้างใหม่ทุกครั้งที่ build
   late final Stream<QuerySnapshot> _soldItemsStream;
@@ -47,12 +53,9 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
   @override
   void initState() {
     super.initState();
+    _currentUser = _authService.getCurrentUser();
     // B3: กำหนด stream ครั้งเดียวใน initState
-    _soldItemsStream = FirebaseFirestore.instance
-        .collection('Products')
-        .where('sellerUid', isEqualTo: widget.targetUserId)
-        .where('status', isEqualTo: 'closed')
-        .snapshots();
+    _soldItemsStream = _productService.getSoldItemsStream(widget.targetUserId);
 
     _reviewsStream = _reviewService.getSellerReviews(widget.targetUserId);
 
@@ -61,10 +64,7 @@ class _UserProfileViewPageState extends State<UserProfileViewPage> {
 
   Future<void> _loadProfileData() async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(widget.targetUserId)
-          .get();
+      final doc = await _userService.getUserData(widget.targetUserId);
 
       if (doc.exists) {
         final data = doc.data() as Map<String, dynamic>;
