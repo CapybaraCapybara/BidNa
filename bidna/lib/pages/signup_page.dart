@@ -95,10 +95,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     color: const Color(0xFF6C5CE7).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.gavel_rounded,
-                    size: 40,
-                    color: Color(0xFF6C5CE7),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Image.asset(
+                      'lib/assets/icon.png',
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
