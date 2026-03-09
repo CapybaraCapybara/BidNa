@@ -16,6 +16,7 @@ dependencies:
   image_picker: ^1.2.1
   image: ^4.7.2
   intl: ^0.20.2
+  confetti: ^0.8.0
 
 dev_dependencies:
   flutter_test:

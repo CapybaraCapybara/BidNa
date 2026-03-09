@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 
 class AuctionCountdownCard extends StatefulWidget {
   final DateTime endTime;
+  final VoidCallback?
+  onTimerEnded; // เพิ่ม Callback สำหรับแจ้งเตือนเมื่อหมดเวลา
 
-  const AuctionCountdownCard({super.key, required this.endTime});
+  const AuctionCountdownCard({
+    super.key,
+    required this.endTime,
+    this.onTimerEnded,
+  });
 
   @override
   State<AuctionCountdownCard> createState() => _AuctionCountdownCardState();
@@ -13,6 +19,7 @@ class AuctionCountdownCard extends StatefulWidget {
 class _AuctionCountdownCardState extends State<AuctionCountdownCard> {
   Timer? _timer;
   late Duration _remainingTime;
+  bool _isEndedCalled = false;
 
   @override
   void initState() {
@@ -30,9 +37,21 @@ class _AuctionCountdownCardState extends State<AuctionCountdownCard> {
 
   void _calculateRemainingTime() {
     _remainingTime = widget.endTime.difference(DateTime.now());
+
+    // 🌟 เมื่อเวลาติดลบ (แปลว่าหมดเวลาแล้ว)
     if (_remainingTime.isNegative) {
       _remainingTime = Duration.zero;
       _timer?.cancel();
+
+      // 🌟 ตะโกนบอกหน้าหลักว่า "เวลาหมดแล้วนะ!" (ทำแค่ครั้งเดียว)
+      if (!_isEndedCalled) {
+        _isEndedCalled = true;
+        if (widget.onTimerEnded != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onTimerEnded!();
+          });
+        }
+      }
     }
   }
 
@@ -49,10 +68,10 @@ class _AuctionCountdownCardState extends State<AuctionCountdownCard> {
         _remainingTime.inMinutes < 10 && _remainingTime.inSeconds > 0;
     bool isEnded = _remainingTime.inSeconds <= 0;
 
-    Color backgroundColor = isUrgent | isEnded
+    Color backgroundColor = isUrgent || isEnded
         ? const Color(0xFFFFF0F0)
         : const Color(0xFFF0F5F9);
-    Color contentColor = isUrgent | isEnded
+    Color contentColor = isUrgent || isEnded
         ? Colors.redAccent
         : const Color(0xFF5E6E82);
 

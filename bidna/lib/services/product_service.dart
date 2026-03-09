@@ -10,12 +10,17 @@ class ProductService {
 
   // ดึงข้อมูลสินค้าทั้งหมดแบบ Stream
   Stream<QuerySnapshot> getLiveAuctions() {
-    return _db.collection('Products').orderBy('startTime', descending: true).snapshots();
+    return _db
+        .collection('Products')
+        .orderBy('startTime', descending: true)
+        .snapshots();
   }
 
   // ปิดการประมูลอัตโนมัติ (เปลี่ยน status เป็น closed)
   Future<void> closeAuction(String productId) async {
-    await _db.collection('Products').doc(productId).update({'status': 'closed'});
+    await _db.collection('Products').doc(productId).update({
+      'status': 'closed',
+    });
   }
 
   // วางเงินประมูล (Bid) และส่งแจ้งเตือนคนโดนปาดหน้า
@@ -25,6 +30,19 @@ class ProductService {
     required double amount,
     required String? previousWinnerId,
   }) async {
+    // 1. ดึงข้อมูล User มาเช็คยอดเงินก่อน
+    final userDoc = await _db.collection('Users').doc(myUid).get();
+    final double myBalance =
+        (userDoc.data() as Map<String, dynamic>)['couponBalance']?.toDouble() ??
+        0;
+
+    // 2. เช็คว่าเงินพอไหม?
+    if (myBalance < amount) {
+      throw Exception(
+        'คูปองไม่เพียงพอ กรุณาเติมคูปอง!',
+      ); // โยน Error กลับไปให้หน้า UI แจ้งเตือน
+    }
+
     final productRef = _db.collection('Products').doc(productId);
 
     // อัปเดตข้อมูลสินค้า
@@ -44,14 +62,71 @@ class ProductService {
 
     // แจ้งเตือนคนโดนปาด
     if (previousWinnerId != null && previousWinnerId != myUid) {
-      await _db.collection('Users').doc(previousWinnerId).collection('notifications').add({
-        'title': 'You have been outbid! 😱',
-        'message': 'Someone placed a higher bid of ฿${amount.toStringAsFixed(0)} on your item.',
-        'isRead': false,
-        'type': 'OUTBID',
-        'productId': productId,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await _db
+          .collection('Users')
+          .doc(previousWinnerId)
+          .collection('notifications')
+          .add({
+            'title': 'You have been outbid! 😱',
+            'message':
+                'Someone placed a higher bid of ฿${amount.toStringAsFixed(0)} on your item.',
+            'isRead': false,
+            'type': 'OUTBID',
+            'productId': productId,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
     }
+  }
+
+  // ชำระเงินเมื่อชนะการประมูล
+  Future<void> payForWonAuction({
+    required String productId,
+    required String winnerUid,
+    required double amount,
+  }) async {
+    // 1. ดึงข้อมูล User มาเช็คยอด Coupon
+    final userDoc = await _db.collection('Users').doc(winnerUid).get();
+    final double currentBalance =
+        (userDoc.data() as Map<String, dynamic>?)?['couponBalance']
+            ?.toDouble() ??
+        0;
+
+    // 2. ถ้าเงินไม่พอ ให้โยน Error กลับไปให้หน้า UI แจ้งเตือน
+    if (currentBalance < amount) {
+      throw Exception('คูปองไม่เพียงพอ กรุณาเติมคูปองที่หน้าโปรไฟล์!');
+    }
+
+    // 3. ใช้ WriteBatch เพื่อให้การหักเงินและการเปลี่ยนสถานะสินค้า "ทำงานพร้อมกัน"
+    WriteBatch batch = _db.batch();
+
+    // 3.1 หักเงินผู้ชนะ
+    DocumentReference userRef = _db.collection('Users').doc(winnerUid);
+    batch.update(userRef, {'couponBalance': FieldValue.increment(-amount)});
+
+    // 3.2 เปลี่ยนสถานะสินค้าเป็น PAID
+    DocumentReference productRef = _db.collection('Products').doc(productId);
+    batch.update(productRef, {'status': 'PAID'});
+
+    // ยืนยันการเปลี่ยนแปลงลงฐานข้อมูล
+    await batch.commit();
+  }
+
+  //  ผู้ซื้อยืนยันการรับสินค้า (โอนเงินให้ผู้ขาย)
+  Future<void> confirmItemReceipt({
+    required String productId,
+    required String sellerUid,
+    required double amount,
+  }) async {
+    WriteBatch batch = _db.batch();
+
+    // 1. นำ Coupon ไปบวกเพิ่มให้กับ "ผู้ขาย"
+    DocumentReference sellerRef = _db.collection('Users').doc(sellerUid);
+    batch.update(sellerRef, {'couponBalance': FieldValue.increment(amount)});
+
+    // 2. อัปเดตสถานะสินค้าเป็น 'COMPLETED' (จบกระบวนการทั้งหมด)
+    DocumentReference productRef = _db.collection('Products').doc(productId);
+    batch.update(productRef, {'status': 'closed'});
+
+    await batch.commit();
   }
 }
