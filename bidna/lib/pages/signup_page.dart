@@ -320,6 +320,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+
   Widget _buildToggleBtn(String text, bool isSelected) {
     return GestureDetector(
       onTap: () {
