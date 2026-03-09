@@ -61,7 +61,7 @@
 ### 1️⃣ **Push Notification**
 - แจ้งเตือนทันทีเมื่อมีคนลงราคาแซง
 
-### 2️⃣ **In-App Currency System**
+### 2️⃣ **Payment (In-App Currency)**
 - สร้างสกุลเงินกลางของแพลตฟอร์มเพื่อใช้ในการแลกเปลี่ยนภายในแอปพลิเคชัน
 
 ### 3️⃣ **Chat System**
@@ -79,7 +79,7 @@
 
 ### **Usability (ความสะดวกในการใช้งาน)**
 - **เข้าใจง่าย:** อินเทอร์เฟซ (UI) ต้องจัดวางอย่างเป็นระเบียบ ไม่ซับซ้อน เพื่อให้ผู้ใช้ใหม่สามารถใช้งานได้ทันที
-- **ป้องกันการกดผิดพลาด :** ออกแบบและจัดวางปุ่มเสนอราคาในตำแหน่งที่เหมาะสมและชัดเจน
+- **ป้องกันการกดผิดพลาด:** ออกแบบและจัดวางปุ่มเสนอราคาในตำแหน่งที่เหมาะสมและชัดเจน
 
 ### **Security (ความปลอดภัย)**
 - **การปกป้องข้อมูล:** ข้อมูลส่วนตัวของผู้ใช้ต้องถูกจัดเก็บอย่างปลอดภัย
@@ -92,7 +92,18 @@
 
 ---
 
+## 📥 **Download APK**
+👉 [Download APK](https://drive.google.com/drive/u/0/folders/1z9ctLx1-PJ6L38k2mX29fk0WZPbpcXi4)
+
+---
+
+## 📊 **Slide**
+👉 [Slide](https://www.canva.com/design/DAHDdHZlABo/TXyOzo7MCe3t6OzE6FAooQ/edit?utm_content=DAHDdHZlABo&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
+---
+
 ## 👥 **Owners**
+
 * **66070086** ธราธิป เตชะธาดาเดช (@[TaratipT](https://github.com/TaratipT))
 * **66070234** กรวิชญ์ มณีรัตน์ (@[KorawichManeeratana](https://github.com/KorawichManeeratana))
 * **66070263** ธนกฤต สุทธิพงษ์ (@[CapybaraCapybara](https://github.com/CapybaraCapybara))
