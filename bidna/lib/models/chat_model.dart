@@ -22,6 +22,16 @@ class ChatRoomModel {
       lastTimestamp: (d['lastTimestamp'] as Timestamp?)?.toDate(),
     );
   }
+
+  // B4: ย้าย peer data fetch ออกจาก UI มาไว้ใน Model
+  Future<Map<String, dynamic>?> fetchPeerData(String peerId) async {
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(peerId)
+        .get();
+    if (!doc.exists) return null;
+    return doc.data() as Map<String, dynamic>;
+  }
 }
 
 class MessageModel {

@@ -1,105 +1,87 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bidna/pages/chat_page.dart';
 import 'package:intl/intl.dart';
 
-// 🔴 Import Model
+// Models & Services
 import 'package:bidna/models/chat_model.dart';
+import 'package:bidna/services/chat_service.dart';
 
-class ChatListPage extends StatelessWidget {
+// Widgets (B4: แยก UI ออกจาก page)
+import 'package:bidna/widgets/chat_room_tile.dart';
+
+class ChatListPage extends StatefulWidget {
   const ChatListPage({super.key});
 
   @override
+  State<ChatListPage> createState() => _ChatListPageState();
+}
+
+// B3: เปลี่ยนเป็น StatefulWidget เพื่อ init stream ครั้งเดียวใน initState
+class _ChatListPageState extends State<ChatListPage> {
+  final ChatService _chatService = ChatService();
+  final User? _currentUser = FirebaseAuth.instance.currentUser;
+
+  // B3: เตรียม stream ล่วงหน้า ไม่สร้างใหม่ทุกรอบที่ build
+  late final Stream<List<ChatRoomModel>> _chatRoomsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_currentUser != null) {
+      // B4: ให้ Service จัดการ query + sort แทน UI
+      _chatRoomsStream =
+          _chatService.getUserChatRoomsStream(_currentUser!.uid);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return const Center(child: Text("Please login"));
+    if (_currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text('Please login')),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FD),
       appBar: AppBar(
-        title: const Text("Messages", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Messages',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('ChatRooms')
-            .where('users', arrayContains: currentUser.uid)
-            .snapshots(),
+      body: StreamBuilder<List<ChatRoomModel>>(
+        stream: _chatRoomsStream,
         builder: (context, snapshot) {
+          // B5: error handling
           if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
+            return const Center(child: Text('Unable to load messages.'));
           }
-
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No messages yet."));
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No messages yet.'));
           }
 
-          // 🔴 แปลง Document เป็น ChatRoomModel
-          var rooms = snapshot.data!.docs.map((doc) => ChatRoomModel.fromDoc(doc)).toList();
-          
-          // 🔴 เรียงลำดับโดยใช้ Property ของ Model
-          rooms.sort((a, b) {
-            if (a.lastTimestamp == null && b.lastTimestamp == null) return 0;
-            if (a.lastTimestamp == null) return 1;
-            if (b.lastTimestamp == null) return -1;
-            return b.lastTimestamp!.compareTo(a.lastTimestamp!);
-          });
+          final rooms = snapshot.data!;
 
           return ListView.builder(
             itemCount: rooms.length,
             itemBuilder: (context, index) {
-              var room = rooms[index];
-              // 🔴 หา peerId จาก Model
-              String peerId = room.users.firstWhere((id) => id != currentUser.uid, orElse: () => "");
-              
-              if (peerId.isEmpty) return const SizedBox.shrink();
+              final room = rooms[index];
+              // B2: format time sekali di sini, bukan di dalam widget
+              final String timeAgo = room.lastTimestamp != null
+                  ? DateFormat('HH:mm').format(room.lastTimestamp!)
+                  : '';
 
-              String timeAgo = room.lastTimestamp != null 
-                  ? DateFormat('HH:mm').format(room.lastTimestamp!) 
-                  : "";
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('Users').doc(peerId).get(),
-                builder: (context, userSnap) {
-                  if (!userSnap.hasData || !userSnap.data!.exists) return const SizedBox.shrink();
-                  var userData = userSnap.data!.data() as Map<String, dynamic>;
-                  
-                  String peerName = userData['displayName'] ?? "Unknown";
-                  String? peerImage = userData['profileImage'];
-
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    tileColor: Colors.white,
-                    leading: CircleAvatar(
-                      radius: 25,
-                      backgroundColor: Colors.grey.shade200,
-                      backgroundImage: (peerImage != null && peerImage.isNotEmpty) ? MemoryImage(base64Decode(peerImage)) : null,
-                      child: (peerImage == null || peerImage.isEmpty) ? const Icon(Icons.person, color: Colors.grey) : null,
-                    ),
-                    title: Text(peerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(room.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    trailing: Text(timeAgo, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(
-                            peerId: peerId,
-                            peerName: peerName,
-                            peerAvatarBase64: peerImage,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
+              // B4: ใช้ ChatRoomTile widget แยกไฟล์
+              return ChatRoomTile(
+                room: room,
+                currentUserId: _currentUser!.uid,
+                timeAgo: timeAgo,
               );
             },
           );

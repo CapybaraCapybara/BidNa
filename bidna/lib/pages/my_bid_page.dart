@@ -51,8 +51,8 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
           indicatorColor: const Color(0xFF6347EB),
           indicatorWeight: 3,
           tabs: const [
-            Tab(text: "รายการที่ฉันประมูล"),
-            Tab(text: "สินค้าที่ฉันลงขาย"),
+            Tab(text: "My Bids"),
+            Tab(text: "My Listings"),
           ],
         ),
       ),
@@ -71,7 +71,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
   // ==========================================
   Widget _buildBidsTab() {
     User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text("กรุณาเข้าสู่ระบบ"));
+    if (user == null) return const Center(child: Text("Please login"));
 
     return Column(
       children: [
@@ -90,7 +90,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                 return const Center(child: CircularProgressIndicator());
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text("คุณยังไม่เคยประมูลสินค้า", style: TextStyle(color: Colors.grey)));
+                return const Center(child: Text("You haven't bid on any products yet.", style: TextStyle(color: Colors.grey)));
               }
 
               // 🔴 แปลงเป็น List<ProductModel>
@@ -119,12 +119,12 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_bidFilter == 'All' || _bidFilter == 'Ongoing') ...[
-                      if (ongoingLeading.isNotEmpty) _buildSection("👑 นำอยู่ (Leading)", Colors.green.shade600, ongoingLeading),
-                      if (ongoingOutbid.isNotEmpty) _buildSection("⚠️ โดนแซง (Outbid)", Colors.orange.shade700, ongoingOutbid),
+                      if (ongoingLeading.isNotEmpty) _buildSection("👑 Leading", Colors.green.shade600, ongoingLeading),
+                      if (ongoingOutbid.isNotEmpty) _buildSection("⚠️ Outbid", Colors.orange.shade700, ongoingOutbid),
                     ],
                     if (_bidFilter == 'All' || _bidFilter == 'Ended') ...[
-                      if (endedWon.isNotEmpty) _buildSection("🏆 ชนะการประมูล (Won)", const Color(0xFF6347EB), endedWon),
-                      if (endedLost.isNotEmpty) _buildSection("❌ จบแล้ว/แพ้ (Lost)", Colors.grey.shade600, endedLost),
+                      if (endedWon.isNotEmpty) _buildSection("🏆 Won", const Color(0xFF6347EB), endedWon),
+                      if (endedLost.isNotEmpty) _buildSection("❌ Lost", Colors.grey.shade600, endedLost),
                     ],
                     const SizedBox(height: 30),
                   ],
@@ -142,7 +142,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
   // ==========================================
   Widget _buildListingsTab() {
     User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text("กรุณาเข้าสู่ระบบ"));
+    if (user == null) return const Center(child: Text("Please login"));
 
     return Column(
       children: [
@@ -161,7 +161,7 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                 return const Center(child: CircularProgressIndicator());
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text("คุณยังไม่มีสินค้าที่ลงขาย", style: TextStyle(color: Colors.grey)));
+                return const Center(child: Text("You don't have any listings yet.", style: TextStyle(color: Colors.grey)));
               }
 
               List<ProductModel> ongoingListings = [];
@@ -182,10 +182,10 @@ class _MyBidPageState extends State<MyBidPage> with SingleTickerProviderStateMix
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (_listingFilter == 'All' || _listingFilter == 'Ongoing') ...[
-                      if (ongoingListings.isNotEmpty) _buildSection("🟢 กำลังเปิดประมูล (Ongoing)", Colors.green.shade600, ongoingListings),
+                      if (ongoingListings.isNotEmpty) _buildSection("🟢 Ongoing", Colors.green.shade600, ongoingListings),
                     ],
                     if (_listingFilter == 'All' || _listingFilter == 'Ended') ...[
-                      if (endedListings.isNotEmpty) _buildSection("🔴 ปิดประมูลแล้ว (Ended)", Colors.redAccent, endedListings),
+                      if (endedListings.isNotEmpty) _buildSection("🔴 Ended", Colors.redAccent, endedListings),
                     ],
                     const SizedBox(height: 30),
                   ],

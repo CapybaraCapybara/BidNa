@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:bidna/models/chat_model.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -8,6 +9,28 @@ class ChatService {
     List<String> ids = [uid1, uid2];
     ids.sort();
     return ids.join("_");
+  }
+
+  // B4: ย้าย Stream query ออกจาก UI มาไว้ใน Service
+  Stream<List<ChatRoomModel>> getUserChatRoomsStream(String uid) {
+    return _db
+        .collection('ChatRooms')
+        .where('users', arrayContains: uid)
+        .snapshots()
+        .map((snapshot) {
+      final rooms =
+          snapshot.docs.map((doc) => ChatRoomModel.fromDoc(doc)).toList();
+
+      // B4: ย้าย sort logic ออกจาก UI มาไว้ใน Service
+      rooms.sort((a, b) {
+        if (a.lastTimestamp == null && b.lastTimestamp == null) return 0;
+        if (a.lastTimestamp == null) return 1;
+        if (b.lastTimestamp == null) return -1;
+        return b.lastTimestamp!.compareTo(a.lastTimestamp!);
+      });
+
+      return rooms;
+    });
   }
 
   // ส่งข้อความ
