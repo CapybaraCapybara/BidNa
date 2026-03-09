@@ -34,6 +34,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
+          
         ),
       ),
       body: currentUser == null
