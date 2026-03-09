@@ -299,23 +299,81 @@ class _CreateListingBase64State extends State<CreateListingBase64> {
   }
 
   Widget _buildPhotoArea() {
-    return Wrap(spacing: 10, children: [
-      ..._selectedImages.map((file) => ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.file(file, width: 70, height: 70, fit: BoxFit.cover))),
-      if (_selectedImages.length < 5)
-        GestureDetector(
-          onTap: _pickImage,
-          child: Container(
-            width: 70, 
-            height: 70, 
-            decoration: BoxDecoration(
-              border: Border.all(color: _imageError != null ? Colors.red.shade700 : Colors.grey.shade300), 
-              borderRadius: BorderRadius.circular(8), 
-              color: Colors.grey.shade50
-            ), 
-            child: Icon(Icons.add_a_photo, color: _imageError != null ? Colors.red.shade700 : Colors.grey)
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10, // เพิ่มระยะห่างระหว่างบรรทัดเว้นรูปหล่นลงมา
+      children: [
+        ..._selectedImages.asMap().entries.map((entry) {
+          int index = entry.key;
+          File file = entry.value;
+          return Stack(
+            children: [
+              // ตัวรูปภาพ
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  file,
+                  width: 70,
+                  height: 70,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // ปุ่มลบรูป (กากบาทสีแดง) มุมขวาบน
+              Positioned(
+                top: -5,
+                right: -5,
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.cancel,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                  ),
+                  onPressed: () {
+                    // ลบรูปออกจาก List และอัปเดตหน้าจอ
+                    setState(() {
+                      _selectedImages.removeAt(index);
+                      // ถ้าลบจนหมด และเคยกดปุ่มสร้างไปแล้ว ให้พ่น Error กลับมา
+                      if (_selectedImages.isEmpty && _isSubmitted) {
+                        _imageError = "Please add at least 1 photo";
+                      }
+                    });
+                  },
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+        
+        // ปุ่มเพิ่มรูปภาพ
+        if (_selectedImages.length < 5)
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: _imageError != null
+                        ? Colors.red.shade700
+                        : Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey.shade50,
+              ),
+              child: Icon(
+                Icons.add_a_photo,
+                color: _imageError != null ? Colors.red.shade700 : Colors.grey,
+              ),
+            ),
           ),
-        ),
-    ]);
+      ],
+    );
   }
 
   Widget _buildInputLabel(String t) => Padding(padding: const EdgeInsets.only(top: 15, bottom: 5), child: Text(t, style: const TextStyle(fontWeight: FontWeight.bold)));
